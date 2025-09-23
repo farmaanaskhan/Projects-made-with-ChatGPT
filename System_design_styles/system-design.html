@@ -54,11 +54,16 @@ function generateDiagram() {
 }
 
         function drawBox(x, y, width, height, text) {
-            ctx.strokeRect(x, y, width, height);
-            ctx.font = '14px Arial';
-            ctx.fillText(text, x + 10, y + 25);
-            boxes.push({x, y, width, height, text});
-        }
+    ctx.strokeStyle = '#90CAF9'; // Light blue border for boxes
+    ctx.strokeRect(x, y, width, height);
+
+    ctx.fillStyle = '#E0E0E0'; // Light gray text color
+    ctx.font = '14px Arial';
+    ctx.textAlign = 'center'; // Center text within the box
+    ctx.textBaseline = 'middle'; // Vertically center text
+    ctx.fillText(text, x + width / 2, y + height / 2); // Position text in the middle of the box
+    boxes.push({x, y, width, height, text});
+}
 
         function drawArrow(fromX, fromY, toX, toY) {
             ctx.beginPath();
