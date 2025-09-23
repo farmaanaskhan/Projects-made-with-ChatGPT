@@ -30,20 +30,24 @@
         let connectionStart = null;
 
         function generateDiagram() {
-            const instructions = document.getElementById('instructions').value.toLowerCase();
-            ctx.clearRect(0, 0, canvas.width, canvas.height);
-            boxes = [];
-            connections = [];
+    const instructions = document.getElementById('instructions').value.toLowerCase();
+    ctx.clearRect(0, 0, canvas.width, canvas.height);
+    boxes = [];
+    connections = [];
 
-            if (instructions.includes('whatsapp')) {
-                drawWhatsAppDiagram();
-            } else if (instructions.includes('facebook')) {
-                drawFacebookDiagram();
-            } else {
-                ctx.font = '20px Arial';
-                ctx.fillText('Unsupported system. Try "WhatsApp" or "Facebook".', 20, 40);
-            }
-        }
+    if (instructions.includes('whatsapp')) {
+        drawWhatsAppDiagram();
+    } else if (instructions.includes('facebook')) {
+        drawFacebookDiagram();
+    } else if (instructions.includes('netflix')) {
+        drawNetflixDiagram();
+    } else if (instructions.includes('twitter')) {
+        drawTwitterDiagram();
+    } else {
+        ctx.font = '20px Arial';
+        ctx.fillText('Unsupported system. Try "WhatsApp", "Facebook", "Netflix", or "Twitter".', 20, 40);
+    }
+}
 
         function drawBox(x, y, width, height, text) {
             ctx.strokeRect(x, y, width, height);
