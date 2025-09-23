@@ -108,7 +108,30 @@
             ctx.font = '16px Arial';
             ctx.fillText('Facebook System Design', 300, 30);
         }
+        
+        function drawNetflixDiagram() {
+    // Define the boxes for the Netflix system
+    drawBox(50, 200, 120, 60, 'Client');
+    drawBox(300, 50, 120, 60, 'CDN');
+    drawBox(300, 200, 120, 60, 'API Gateway');
+    drawBox(550, 200, 120, 60, 'Microservices');
+    drawBox(550, 350, 120, 60, 'Databases');
+    drawBox(700, 50, 120, 60, 'Video Storage'); // Assuming this box is a bit different
 
+    // Define the connections
+    connections = [
+        {from: boxes[0], to: boxes[1]}, // Client -> CDN
+        {from: boxes[0], to: boxes[2]}, // Client -> API Gateway
+        {from: boxes[2], to: boxes[3]}, // API Gateway -> Microservices
+        {from: boxes[3], to: boxes[4]}, // Microservices -> Databases
+        {from: boxes[3], to: boxes[5]} // Microservices -> Video Storage (potentially through another service)
+    ];
+
+    redrawDiagram();
+
+    ctx.font = '16px Arial';
+    ctx.fillText('Netflix System Design', 300, 30);
+}
         function redrawDiagram() {
             ctx.clearRect(0, 0, canvas.width, canvas.height);
             boxes.forEach(box => {
