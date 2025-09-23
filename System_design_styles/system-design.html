@@ -29,23 +29,27 @@
         let isConnecting = false;
         let connectionStart = null;
 
-        function generateDiagram() {
+        const diagramGenerators = {
+    'whatsapp': drawWhatsAppDiagram,
+    'facebook': drawFacebookDiagram,
+    'netflix': drawNetflixDiagram,
+    'twitter': drawTwitterDiagram
+};
+
+function generateDiagram() {
     const instructions = document.getElementById('instructions').value.toLowerCase();
     ctx.clearRect(0, 0, canvas.width, canvas.height);
     boxes = [];
     connections = [];
 
-    if (instructions.includes('whatsapp')) {
-        drawWhatsAppDiagram();
-    } else if (instructions.includes('facebook')) {
-        drawFacebookDiagram();
-    } else if (instructions.includes('netflix')) {
-        drawNetflixDiagram();
-    } else if (instructions.includes('twitter')) {
-        drawTwitterDiagram();
+    // Find the relevant generator function
+    const systemToDraw = Object.keys(diagramGenerators).find(key => instructions.includes(key));
+
+    if (systemToDraw) {
+        diagramGenerators[systemToDraw]();
     } else {
         ctx.font = '20px Arial';
-        ctx.fillText('Unsupported system. Try "WhatsApp", "Facebook", "Netflix", or "Twitter".', 20, 40);
+        ctx.fillText('Unsupported system. Try: ' + Object.keys(diagramGenerators).join(', '), 20, 40);
     }
 }
 
@@ -132,6 +136,33 @@
     ctx.font = '16px Arial';
     ctx.fillText('Netflix System Design', 300, 30);
 }
+   
+function drawTwitterDiagram() {
+    // Define the boxes for the Twitter system
+    drawBox(50, 200, 120, 60, 'User Interface');
+    drawBox(200, 200, 120, 60, 'Load Balancer');
+    drawBox(350, 100, 120, 60, 'Web Servers');
+    drawBox(350, 300, 120, 60, 'Application Servers');
+    drawBox(550, 200, 120, 60, 'Cache (Redis)');
+    drawBox(700, 200, 120, 60, 'Database (MySQL)');
+
+    // Define the connections
+    connections = [
+        {from: boxes[0], to: boxes[1]}, // User Interface -> Load Balancer
+        {from: boxes[1], to: boxes[2]}, // Load Balancer -> Web Servers
+        {from: boxes[1], to: boxes[3]}, // Load Balancer -> Application Servers
+        {from: boxes[2], to: boxes[4]}, // Web Servers -> Cache
+        {from: boxes[3], to: boxes[4]}, // Application Servers -> Cache
+        {from: boxes[4], to: boxes[5]} // Cache -> Database
+    ];
+
+    redrawDiagram();
+
+    ctx.font = '16px Arial';
+    ctx.fillText('Twitter System Design', 300, 30);
+}
+
+
         function redrawDiagram() {
             ctx.clearRect(0, 0, canvas.width, canvas.height);
             boxes.forEach(box => {
