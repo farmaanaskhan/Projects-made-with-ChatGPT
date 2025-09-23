@@ -66,19 +66,21 @@ function generateDiagram() {
 }
 
         function drawArrow(fromX, fromY, toX, toY) {
-            ctx.beginPath();
-            ctx.moveTo(fromX, fromY);
-            ctx.lineTo(toX, toY);
-            ctx.stroke();
+    ctx.beginPath();
+    ctx.moveTo(fromX, fromY);
+    ctx.lineTo(toX, toY);
+    ctx.strokeStyle = '#BBDEFB'; // Lighter blue for the line
+    ctx.stroke();
 
-            const angle = Math.atan2(toY - fromY, toX - fromX);
-            ctx.beginPath();
-            ctx.moveTo(toX, toY);
-            ctx.lineTo(toX - 15 * Math.cos(angle - Math.PI / 6), toY - 15 * Math.sin(angle - Math.PI / 6));
-            ctx.lineTo(toX - 15 * Math.cos(angle + Math.PI / 6), toY - 15 * Math.sin(angle + Math.PI / 6));
-            ctx.closePath();
-            ctx.fill();
-        }
+    const angle = Math.atan2(toY - fromY, toX - fromX);
+    ctx.beginPath();
+    ctx.moveTo(toX, toY);
+    ctx.lineTo(toX - 15 * Math.cos(angle - Math.PI / 6), toY - 15 * Math.sin(angle - Math.PI / 6));
+    ctx.lineTo(toX - 15 * Math.cos(angle + Math.PI / 6), toY - 15 * Math.sin(angle + Math.PI / 6));
+    ctx.closePath();
+    ctx.fillStyle = '#BBDEFB'; // Lighter blue for the arrowhead
+    ctx.fill();
+}
 
         function drawWhatsAppDiagram() {
             drawBox(50, 50, 120, 60, 'User Interface');
@@ -181,18 +183,31 @@ function drawTwitterDiagram() {
 
 
         function redrawDiagram() {
-            ctx.clearRect(0, 0, canvas.width, canvas.height);
-            boxes.forEach(box => {
-                ctx.strokeRect(box.x, box.y, box.width, box.height);
-                ctx.font = '14px Arial';
-                ctx.fillText(box.text, box.x + 10, box.y + 25);
-            });
+    ctx.clearRect(0, 0, canvas.width, canvas.height); // Clear the canvas
 
-            connections.forEach(conn => {
-                drawArrow(conn.from.x + conn.from.width / 2, conn.from.y + conn.from.height / 2,
-                          conn.to.x + conn.to.width / 2, conn.to.y + conn.to.height / 2);
-            });
-        }
+    // Set text style for the main title that appears on some diagrams
+    ctx.fillStyle = '#E0E0E0'; // Ensure title text is visible
+    ctx.font = '16px Arial'; // Default font for titles, can be overridden in specific diagram functions
+
+    boxes.forEach(box => {
+        ctx.strokeStyle = '#90CAF9'; // Light blue border for boxes
+        ctx.strokeRect(box.x, box.y, box.width, box.height);
+
+        ctx.fillStyle = '#E0E0E0'; // Light gray text color
+        ctx.font = '14px Arial';
+        ctx.textAlign = 'center';
+        ctx.textBaseline = 'middle';
+        ctx.fillText(box.text, box.x + box.width / 2, box.y + box.height / 2);
+    });
+
+    connections.forEach(conn => {
+        ctx.strokeStyle = '#BBDEFB'; // Lighter blue for connection lines
+        ctx.fillStyle = '#BBDEFB';   // Lighter blue for arrowheads
+        drawArrow(conn.from.x + conn.from.width / 2, conn.from.y + conn.from.height / 2,
+                  conn.to.x + conn.to.width / 2, conn.to.y + conn.to.height / 2);
+    });
+}
+
 
         function addNewBox() {
             const text = document.getElementById('newBoxText').value;
