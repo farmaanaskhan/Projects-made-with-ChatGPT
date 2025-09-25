@@ -15,20 +15,20 @@
         <button onclick="addNewBox()">Add New Box</button>
         <button onclick="toggleConnectionMode()">Toggle Connection Mode</button>
     </div>
-    <canvas id="diagramCanvas" width="800" height="600"></canvas>
+    <canvas id="diagramCanvas" width="1500" height="600"></canvas>
 
     <script>
         const canvas = document.getElementById('diagramCanvas');
         const ctx = canvas.getContext('2d');
 
         let boxes = [];
-        let connections = [];
-        let isDragging = false;
-        let draggedBox = null;
-        let offsetX, offsetY;
-        let isConnecting = false;
-        let connectionStart = null;
-
+let connections = [];
+let isDragging = false;
+let draggedBox = null;
+let offsetX, offsetY;
+let isConnecting = false;
+let connectionStart = null;
+let currentDiagramTitle = '';
         const diagramGenerators = {
     'whatsapp': drawWhatsAppDiagram,
     'facebook': drawFacebookDiagram,
@@ -38,18 +38,29 @@
 
 function generateDiagram() {
     const instructions = document.getElementById('instructions').value.toLowerCase();
-    ctx.clearRect(0, 0, canvas.width, canvas.height);
-    boxes = [];
-    connections = [];
+    
+    // NOTE: boxes and connections are cleared inside each draw...Diagram function now
+    // for better control over indexing.
 
-    // Find the relevant generator function
-    const systemToDraw = Object.keys(diagramGenerators).find(key => instructions.includes(key));
-
-    if (systemToDraw) {
-        diagramGenerators[systemToDraw]();
+    if (instructions.includes('whatsapp')) {
+        currentDiagramTitle = 'WhatsApp System Design';
+        drawWhatsAppDiagram();
+    } else if (instructions.includes('facebook')) {
+        currentDiagramTitle = 'Facebook System Design';
+        drawFacebookDiagram();
+    } else if (instructions.includes('netflix')) {
+        currentDiagramTitle = 'Netflix System Design';
+        drawNetflixDiagram();
+    } else if (instructions.includes('twitter')) {
+        currentDiagramTitle = 'Twitter System Design';
+        drawTwitterDiagram();
     } else {
+        currentDiagramTitle = ''; // Clear title if unsupported
+        ctx.clearRect(0, 0, canvas.width, canvas.height);
         ctx.font = '20px Arial';
-        ctx.fillText('Unsupported system. Try: ' + Object.keys(diagramGenerators).join(', '), 20, 40);
+        ctx.fillText('Unsupported system. Try "WhatsApp", "Facebook", "Netflix", or "Twitter".', 20, 40);
+        boxes = []; // Clear old elements
+        connections = [];
     }
 }
 
@@ -148,161 +159,257 @@ function generateDiagram() {
 
 
         function drawWhatsAppDiagram() {
-            drawBox(50, 50, 120, 60, 'User Interface');
-            drawBox(300, 50, 120, 60, 'Chat Server');
-            drawBox(550, 50, 120, 60, 'Database');
-            drawBox(300, 200, 120, 60, 'Media Server');
-
-            connections = [
-                {from: boxes[0], to: boxes[1]},
-                {from: boxes[1], to: boxes[2]},
-                {from: boxes[1], to: boxes[3]}
-            ];
-
-            redrawDiagram();
-
-            ctx.font = '16px Arial';
-            ctx.fillText('WhatsApp System Design', 300, 30);
-
-            ctx.fillStyle = '#E0E0E0'; // Keep this for now, it's light.
-            ctx.font = 'bold 24px Arial'; // Add 'bold' to make it stand out
-            ctx.fillText('Twitter System Design', canvas.width / 2, 40);
-        }
-
-        function drawFacebookDiagram() {
-            drawBox(50, 50, 120, 60, 'User Interface');
-            drawBox(300, 50, 120, 60, 'Web Server');
-            drawBox(550, 50, 120, 60, 'User Database');
-            drawBox(150, 200, 120, 60, 'News Feed');
-            drawBox(450, 200, 120, 60, 'Media Storage');
-
-            connections = [
-                {from: boxes[0], to: boxes[1]},
-                {from: boxes[1], to: boxes[2]},
-                {from: boxes[1], to: boxes[3]},
-                {from: boxes[1], to: boxes[4]}
-            ];
-
-            redrawDiagram();
-
-            ctx.font = '16px Arial';
-            ctx.fillText('Facebook System Design', 300, 30);
-            ctx.fillStyle = '#E0E0E0'; // Keep this for now, it's light.
-            ctx.font = 'bold 24px Arial'; // Add 'bold' to make it stand out
-            ctx.fillText('Twitter System Design', canvas.width / 2, 40);
-        }
-        
-        function drawNetflixDiagram() {
-    // Define the boxes for the Netflix system
-    drawBox(50, 200, 120, 60, 'Client');
-    drawBox(300, 50, 120, 60, 'CDN');
-    drawBox(300, 200, 120, 60, 'API Gateway');
-    drawBox(550, 200, 120, 60, 'Microservices');
-    drawBox(550, 350, 120, 60, 'Databases');
-    drawBox(700, 50, 120, 60, 'Video Storage'); // Assuming this box is a bit different
-
-    // Define the connections
-    connections = [
-        {from: boxes[0], to: boxes[1]}, // Client -> CDN
-        {from: boxes[0], to: boxes[2]}, // Client -> API Gateway
-        {from: boxes[2], to: boxes[3]}, // API Gateway -> Microservices
-        {from: boxes[3], to: boxes[4]}, // Microservices -> Databases
-        {from: boxes[3], to: boxes[5]} // Microservices -> Video Storage (potentially through another service)
-    ];
-
-    redrawDiagram();
-
-    ctx.font = '16px Arial';
-    ctx.fillText('Netflix System Design', 300, 30);
-    ctx.fillStyle = '#E0E0E0'; // Keep this for now, it's light.
-    ctx.font = 'bold 24px Arial'; // Add 'bold' to make it stand out
-    ctx.fillText('Twitter System Design', canvas.width / 2, 40);
-}
-   
-function drawTwitterDiagram() {
-    // Define the boxes for the Twitter system with better spacing
+    // 1. Define Sizing and Spacing
     const boxWidth = 150;
     const boxHeight = 70;
-    const horizontalSpacing = 180; // Slightly adjusted spacing
-    const verticalSpacing = 100;
+    const horizontalSpacing = 150; 
+    const verticalSpacing = 120;
 
-    // Calculate total diagram width to center it
-    // User Interface (1) + Load Balancer (1) + Web/App Servers (1) + Cache (1) + Database (1)
-    // There are 5 boxes horizontally.
-    // The total width of the boxes themselves is 6 * boxWidth if we count a virtual box for the middle.
-    // Let's count actual visible boxes: 6 boxes in total.
-    // The width occupied by boxes and their spacing will be roughly 5 * boxWidth + 4 * horizontalSpacing
-    const totalDiagramWidth = (6 * boxWidth) + (5 * horizontalSpacing); // Approximate total width
-
-    // Recalculate horizontal positions based on the new totalDiagramWidth
-    // Let's use 6 boxes with 5 gaps
-    const numBoxesInRow = 6;
-    const totalContentWidth = (numBoxesInRow * boxWidth) + ((numBoxesInRow - 1) * horizontalSpacing); // Total width of boxes and gaps in the main flow
-
-    const startX = (canvas.width - totalContentWidth) / 2 + 30; // Center the whole diagram horizontally
+    // 2. Calculate Centering Position
+    // The diagram has 3 main horizontal positions (UI, Chat Server, Database)
+    const numHorizontalPositions = 3;
+    const totalContentWidth = (numHorizontalPositions * boxWidth) + ((numHorizontalPositions - 1) * horizontalSpacing);
+    const startX = (canvas.width - totalContentWidth) / 2;
+    const centerY = canvas.height / 2 - boxHeight / 2;
 
     // Clear boxes and connections before drawing
     boxes = [];
     connections = [];
 
-    // Row 1: User Interface, Load Balancer
-    drawBox(startX, canvas.height / 2 - boxHeight / 2, boxWidth, boxHeight, 'User Interface'); // Centered vertically
-    drawBox(startX + horizontalSpacing, canvas.height / 2 - boxHeight / 2, boxWidth, boxHeight, 'Load Balancer');
+    // 3. Draw Boxes
+    let x1 = startX;
+    let x2 = x1 + boxWidth + horizontalSpacing;
+    let x3 = x2 + boxWidth + horizontalSpacing;
+    
+    // Main Horizontal Row
+    drawBox(x1, centerY, boxWidth, boxHeight, 'User Interface');
+    drawBox(x2, centerY, boxWidth, boxHeight, 'Chat Server');
+    drawBox(x3, centerY, boxWidth, boxHeight, 'Database');
 
-    // Row 2: Web Servers (above), Application Servers (below)
-    // These are positioned relative to Load Balancer and Cache
-    const middleX = startX + 2 * horizontalSpacing; // X-position for Web/App Servers
-    drawBox(middleX, canvas.height / 2 - boxHeight / 2 - verticalSpacing, boxWidth, boxHeight, 'Web Servers');
-    drawBox(middleX, canvas.height / 2 - boxHeight / 2 + verticalSpacing, boxWidth, boxHeight, 'Application Servers');
+    // Branching component (Media Server)
+    drawBox(x2, centerY + verticalSpacing, boxWidth, boxHeight, 'Media Server');
 
-    // Row 3: Cache, Database
-    drawBox(startX + 3 * horizontalSpacing, canvas.height / 2 - boxHeight / 2, boxWidth, boxHeight, 'Cache (Redis)');
-    drawBox(startX + 4 * horizontalSpacing, canvas.height / 2 - boxHeight / 2, boxWidth, boxHeight, 'Database (MySQL)');
-
-
-    // Define the connections
+    // 4. Define Connections (Indices must match the draw order!)
+    // boxes[0]: User Interface
+    // boxes[1]: Chat Server
+    // boxes[2]: Database
+    // boxes[3]: Media Server
     connections = [
-        {from: boxes[0], to: boxes[1]}, // User Interface -> Load Balancer
-        {from: boxes[1], to: boxes[2]}, // Load Balancer -> Web Servers
-        {from: boxes[1], to: boxes[3]}, // Load Balancer -> Application Servers
-        {from: boxes[2], to: boxes[4]}, // Web Servers -> Cache
-        {from: boxes[3], to: boxes[4]}, // Application Servers -> Cache
-        {from: boxes[4], to: boxes[5]}  // Cache -> Database
+        {from: boxes[0], to: boxes[1]}, // UI -> Chat Server
+        {from: boxes[1], to: boxes[2]}, // Chat Server -> Database
+        {from: boxes[1], to: boxes[3]}  // Chat Server -> Media Server
     ];
 
     redrawDiagram();
 
-    ctx.fillStyle = '#E0E0E0'; // Ensure title text is visible and distinct
-    ctx.font = '24px Arial'; // Larger font for the title
+    // 5. Title Styling
+    ctx.fillStyle = '#E0E0E0';
+    ctx.font = 'bold 24px Arial';
+    ctx.textAlign = 'center'; 
+    ctx.fillText('WhatsApp System Design', canvas.width / 2, 40);
+}
+
+       function drawFacebookDiagram() {
+    // 1. Define Sizing and Spacing
+    const boxWidth = 130;
+    const boxHeight = 60;
+    const horizontalSpacing = 150; // Increased spacing for better look
+    const verticalSpacing = 120;
+
+    // 2. Calculate Centering Position
+    // The diagram has 3 main horizontal positions (UI, Web Server, Database)
+    const numHorizontalPositions = 3;
+    const totalContentWidth = (numHorizontalPositions * boxWidth) + ((numHorizontalPositions - 1) * horizontalSpacing);
+    const startX = (canvas.width - totalContentWidth) / 2;
+    const centerY = canvas.height / 2 - boxHeight / 2;
+
+    // Clear boxes and connections before drawing
+    boxes = [];
+    connections = [];
+
+    // 3. Draw Boxes
+    let x1 = startX;
+    let x2 = x1 + boxWidth + horizontalSpacing;
+    let x3 = x2 + boxWidth + horizontalSpacing;
+
+    // Main Horizontal Row
+    drawBox(x1, centerY, boxWidth, boxHeight, 'User Interface');
+    drawBox(x2, centerY, boxWidth, boxHeight, 'Web Server');
+    drawBox(x3, centerY, boxWidth, boxHeight, 'User Database');
+
+    // Branching components (News Feed and Media Storage)
+    drawBox(x2 - horizontalSpacing / 2, centerY + verticalSpacing, boxWidth, boxHeight, 'News Feed');
+    drawBox(x2 + horizontalSpacing / 2, centerY + verticalSpacing, boxWidth, boxHeight, 'Media Storage');
+
+
+    // 4. Define Connections (Indices must match the draw order!)
+    // boxes[0]: User Interface
+    // boxes[1]: Web Server
+    // boxes[2]: User Database
+    // boxes[3]: News Feed
+    // boxes[4]: Media Storage
+    connections = [
+        {from: boxes[0], to: boxes[1]}, // UI -> Web Server
+        {from: boxes[1], to: boxes[2]}, // Web Server -> User Database
+        {from: boxes[1], to: boxes[3]}, // Web Server -> News Feed
+        {from: boxes[1], to: boxes[4]}  // Web Server -> Media Storage
+    ];
+
+    redrawDiagram();
+
+    // 5. Title Styling
+    ctx.fillStyle = '#E0E0E0';
+    ctx.font = 'bold 24px Arial';
+    ctx.textAlign = 'center'; 
+    ctx.fillText('Facebook System Design', canvas.width / 2, 40);
+}
+        
+        function drawNetflixDiagram() {
+    // 1. Define Sizing and Spacing
+    const boxWidth = 150;
+    const boxHeight = 70;
+    const horizontalSpacing = 100;
+    const verticalSpacing = 150;
+
+    // 2. Calculate Centering Position
+    // Main horizontal flow has 4 positions (Client, API Gateway, Microservices, Databases)
+    const numHorizontalPositions = 4;
+    const totalContentWidth = (numHorizontalPositions * boxWidth) + ((numHorizontalPositions - 1) * horizontalSpacing);
+    const startX = (canvas.width - totalContentWidth) / 2;
+    const centerY = canvas.height / 2 - boxHeight / 2;
+
+    // Clear boxes and connections (Done by generateDiagram, but doesn't hurt to ensure)
+    boxes = [];
+    connections = [];
+
+    // 3. Draw Boxes
+    let x1 = startX;
+    let x2 = x1 + boxWidth + horizontalSpacing;
+    let x3 = x2 + boxWidth + horizontalSpacing;
+    let x4 = x3 + boxWidth + horizontalSpacing;
+    
+    // Main Horizontal Row: Client, API Gateway, Microservices
+    drawBox(x1, centerY, boxWidth, boxHeight, 'Client');
+    drawBox(x2, centerY, boxWidth, boxHeight, 'API Gateway');
+    drawBox(x3, centerY, boxWidth, boxHeight, 'Microservices');
+
+    // Branching Components: CDN (up), Databases (down), Video Storage (up-right)
+    drawBox(x1 + 10, centerY - verticalSpacing, boxWidth, boxHeight, 'CDN'); // Aligned with Client
+    drawBox(x3, centerY + verticalSpacing, boxWidth, boxHeight, 'Databases'); // Aligned with Microservices
+    drawBox(x4, centerY - verticalSpacing, boxWidth, boxHeight, 'Video Storage'); // Aligned right of Microservices
+
+    // 4. Define Connections (Indices must match the draw order!)
+    // boxes[0]: Client
+    // boxes[1]: API Gateway
+    // boxes[2]: Microservices
+    // boxes[3]: CDN
+    // boxes[4]: Databases
+    // boxes[5]: Video Storage
+    connections = [
+        {from: boxes[0], to: boxes[1]}, // Client -> API Gateway
+        {from: boxes[0], to: boxes[3]}, // Client -> CDN
+        {from: boxes[1], to: boxes[2]}, // API Gateway -> Microservices
+        {from: boxes[2], to: boxes[4]}, // Microservices -> Databases
+        {from: boxes[2], to: boxes[5]}  // Microservices -> Video Storage
+    ];
+
+    redrawDiagram();
+    // REMOVE any ctx.fillText lines here!
+}
+   
+function drawTwitterDiagram() {
+    // 1. Define Sizing and Spacing
+    const boxWidth = 120; // Reduced box width for more space
+    const boxHeight = 60; // Reduced box height
+    const horizontalSpacing = 110; // Significantly reduced horizontal gap
+    const verticalSpacing = 100;
+
+    // 2. Calculate Centering Position
+    // The diagram has 5 main horizontal positions (UI, LB, Middle, Cache, DB)
+    const numHorizontalPositions = 5;
+    const totalContentWidth = (numHorizontalPositions * boxWidth) + ((numHorizontalPositions - 1) * horizontalSpacing);
+    
+    // Calculate the starting X-coordinate to center the whole block
+    const startX = (canvas.width - totalContentWidth) / 2;
+
+    // Clear boxes and connections before drawing
+    boxes = [];
+    connections = [];
+
+    // 3. Draw Boxes with Adjusted Positions
+
+    // X-position based on 'numHorizontalPositions'
+    let x1 = startX;
+    let x2 = x1 + boxWidth + horizontalSpacing;
+    let x3 = x2 + boxWidth + horizontalSpacing; // Middle X
+    let x4 = x3 + boxWidth + horizontalSpacing;
+    let x5 = x4 + boxWidth + horizontalSpacing;
+
+    const centerY = canvas.height / 2 - boxHeight / 2;
+
+    // Row 1: UI, LB, Cache, DB (main horizontal flow)
+    drawBox(x1, centerY, boxWidth, boxHeight, 'User Interface');
+    drawBox(x2, centerY, boxWidth, boxHeight, 'Load Balancer');
+    drawBox(x4, centerY, boxWidth, boxHeight, 'Cache (Redis)');
+    drawBox(x5, centerY, boxWidth, boxHeight, 'Database (MySQL)');
+
+    // Row 2: Web Servers (above), Application Servers (below) - positioned around the middle X
+    drawBox(x3, centerY - verticalSpacing, boxWidth, boxHeight, 'Web Servers');
+    drawBox(x3, centerY + verticalSpacing, boxWidth, boxHeight, 'Application Servers');
+
+
+    // 4. Define Connections (Indices will change based on the order drawn!)
+    // NOTE: Check the boxes array order carefully to map connections correctly!
+    // boxes[0]: User Interface (x1)
+    // boxes[1]: Load Balancer (x2)
+    // boxes[2]: Cache (Redis) (x4)
+    // boxes[3]: Database (MySQL) (x5)
+    // boxes[4]: Web Servers (x3, top)
+    // boxes[5]: Application Servers (x3, bottom)
+    connections = [
+        {from: boxes[0], to: boxes[1]}, // UI -> Load Balancer
+        {from: boxes[1], to: boxes[4]}, // Load Balancer -> Web Servers
+        {from: boxes[1], to: boxes[5]}, // Load Balancer -> Application Servers
+        {from: boxes[4], to: boxes[2]}, // Web Servers -> Cache
+        {from: boxes[5], to: boxes[2]}, // Application Servers -> Cache
+        {from: boxes[2], to: boxes[3]}  // Cache -> Database
+    ];
+
+    redrawDiagram();
+
+    // 5. Title Styling (Ensure you keep the bold style)
+    ctx.fillStyle = '#E0E0E0';
+    ctx.font = 'bold 24px Arial';
+    // Align text to center before drawing the title
+    ctx.textAlign = 'center'; 
     ctx.fillText('Twitter System Design', canvas.width / 2, 40);
+    
+    // Reset textAlign for future text drawing (like error messages)
+    ctx.textAlign = 'start'; 
 }
 
 
-        function redrawDiagram() {
-    ctx.clearRect(0, 0, canvas.width, canvas.height); // Clear the canvas
+       function redrawDiagram() {
+    ctx.clearRect(0, 0, canvas.width, canvas.height); // <-- MUST CLEAR HERE!
 
-    // Set text style for the main title that appears on some diagrams
-    ctx.fillStyle = '#E0E0E0'; // Ensure title text is visible
-    ctx.font = '16px Arial'; // Default font for titles, can be overridden in specific diagram functions
+    // Draw the Title first
+    if (currentDiagramTitle) {
+        ctx.fillStyle = '#E0E0E0';
+        ctx.font = 'bold 24px Arial';
+        ctx.textAlign = 'center';
+        ctx.fillText(currentDiagramTitle, canvas.width / 2, 40);
+        ctx.textAlign = 'start'; // Reset for other text drawing
+    }
 
     boxes.forEach(box => {
-        ctx.strokeStyle = '#90CAF9'; // Light blue border for boxes
-        ctx.strokeRect(box.x, box.y, box.width, box.height);
-
-        ctx.fillStyle = '#E0E0E0'; // Light gray text color
-        ctx.font = '14px Arial';
-        ctx.textAlign = 'center';
-        ctx.textBaseline = 'middle';
-        ctx.fillText(box.text, box.x + box.width / 2, box.y + box.height / 2);
+        // ... (drawing box borders and text)
     });
 
     connections.forEach(conn => {
-        ctx.strokeStyle = '#BBDEFB'; // Lighter blue for connection lines
-        ctx.fillStyle = '#BBDEFB';   // Lighter blue for arrowheads
-        drawArrow(conn.from.x + conn.from.width / 2, conn.from.y + conn.from.height / 2,
-                  conn.to.x + conn.to.width / 2, conn.to.y + conn.to.height / 2);
+        // ... (drawing arrows)
     });
 }
+
 
 
         function addNewBox() {
