@@ -79,29 +79,31 @@ function drawAI(data) {
     connections = [];
     nodeMap = {};
 
-    // 1. Draw Nodes (Boxes)
+    // Sizing and Spacing
     const boxWidth = 150;
     const boxHeight = 70;
-    const horizontalSpacing = 150;
-    const verticalSpacing = 100;
+    const horizontalSpacing = 100;
+    const verticalSpacing = 120;
+    
+    const maxColumns = 4; // Max boxes per row before wrapping
 
-    let x = 50; // Initial X position
-    let y = 100; // Initial Y position
+    let currentX = 50; 
+    let currentY = 100;
 
-    // Use a simple layout: place boxes one after another
+    // 1. Draw Nodes (Boxes) and Build the Node Map
     data.nodes.forEach((node, index) => {
-        // Simple auto-layout: 3 columns, then move to the next row
-        if (index > 0 && index % 3 === 0) {
-            x = 50;
-            y += boxHeight + verticalSpacing;
+        // Simple auto-layout: Wrap after maxColumns
+        if (index > 0 && index % maxColumns === 0) {
+            currentX = 50; // Reset X for new row
+            currentY += boxHeight + verticalSpacing; // Move down
         } else if (index > 0) {
-            x += boxWidth + horizontalSpacing;
+            currentX += boxWidth + horizontalSpacing; // Move right
         }
 
-        // The original drawBox is modified to return the box object
-        const newBox = drawBox(x, y, boxWidth, boxHeight, node.name);
+        // Draw the box and get the object reference
+        const newBox = drawBox(currentX, currentY, boxWidth, boxHeight, node.name);
         
-        // Store the box object linked to its unique ID
+        // Store the box object linked to its unique ID from the AI data
         nodeMap[node.id] = newBox; 
     });
 
@@ -111,15 +113,16 @@ function drawAI(data) {
         const toBox = nodeMap[edge.to_id];
 
         if (fromBox && toBox) {
+            // Note: The 'label' property is part of the connections array but not used in drawArrow yet.
             connections.push({from: fromBox, to: toBox, label: edge.label || ''});
+        } else {
+            console.error(`Connection error: Could not find node with ID ${edge.from_id} or ${edge.to_id}`);
         }
     });
 
-    // We can't automatically center the unpredictable layout yet, 
-    // but the diagram will draw successfully!
-    currentDiagramTitle = 'AI-Generated System Diagram';
+    currentDiagramTitle = 'Generated System Diagram';
     redrawDiagram();
-}  
+}
 
         function drawBox(x, y, width, height, text) {
     ctx.strokeStyle = '#90CAF9';
@@ -132,7 +135,7 @@ function drawAI(data) {
     ctx.fillText(text, x + width / 2, y + height / 2); // Position text in the middle of the box
     const box = {x, y, width, height, text};
     boxes.push(box);
-     return box;
+    return box;
 }
 
         function drawArrow(fromX, fromY, toX, toY) {
