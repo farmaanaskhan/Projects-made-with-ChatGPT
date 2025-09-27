@@ -1,0 +1,309 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>System Design Diagram Tool</title>
+    <link rel="stylesheet" href="System_style.css">
+</head>
+<body>
+    <div id="controls">
+        <textarea id="instructions" rows="4" cols="50" placeholder="Enter system design instructions..."></textarea>
+        <button onclick="generateDiagram()">Generate Diagram</button>
+        <br><br>
+        <input id="newBoxText" type="text" placeholder="Enter box text">
+        <button onclick="addNewBox()">Add New Box</button>
+        <button onclick="toggleConnectionMode()">Toggle Connection Mode</button>
+    </div>
+    <canvas id="diagramCanvas" width="1500" height="600"></canvas>
+
+    <script>
+        const canvas = document.getElementById('diagramCanvas');
+        const ctx = canvas.getContext('2d');
+
+        let boxes = [];
+        let nodeMap = {};
+let connections = [];
+let isDragging = false;
+let draggedBox = null;
+let offsetX, offsetY;
+let isConnecting = false;
+let connectionStart = null;
+let currentDiagramTitle = '';
+      
+
+async function generateDiagram() {
+    const instructions = document.getElementById('instructions').value;
+    
+    // 1. Clear everything for immediate feedback
+    currentDiagramTitle = 'Generating Diagram...';
+    redrawDiagram();
+
+    // 2. Fetch data from your Flask backend
+    try {
+        const response = await fetch('/api/generate_diagram', {
+            method: 'POST',
+            headers: {
+                'Content-Type': 'application/json',
+            },
+            body: JSON.stringify({ instructions: instructions })
+        });
+
+        if (!response.ok) {
+            const errorData = await response.json();
+            throw new Error(errorData.error || `HTTP error! Status: ${response.status}`);
+        }
+
+        const diagramData = await response.json();
+        
+        // 3. Draw the received data
+        drawAI(diagramData);
+
+    } catch (error) {
+        // Display error message on the canvas
+        boxes = [];
+        connections = [];
+        currentDiagramTitle = 'ERROR';
+        redrawDiagram(); 
+        
+        ctx.font = '16px Arial';
+        ctx.fillStyle = '#FF6B6B'; // Red error color
+        ctx.textAlign = 'center';
+        ctx.fillText(`Failed to generate: ${error.message}`, canvas.width / 2, 80);
+        ctx.textAlign = 'start';
+    }
+}
+
+function drawAI(data) {
+    boxes = [];
+    connections = [];
+    nodeMap = {};
+
+    // 1. Draw Nodes (Boxes)
+    const boxWidth = 150;
+    const boxHeight = 70;
+    const horizontalSpacing = 150;
+    const verticalSpacing = 100;
+
+    let x = 50; // Initial X position
+    let y = 100; // Initial Y position
+
+    // Use a simple layout: place boxes one after another
+    data.nodes.forEach((node, index) => {
+        // Simple auto-layout: 3 columns, then move to the next row
+        if (index > 0 && index % 3 === 0) {
+            x = 50;
+            y += boxHeight + verticalSpacing;
+        } else if (index > 0) {
+            x += boxWidth + horizontalSpacing;
+        }
+
+        // The original drawBox is modified to return the box object
+        const newBox = drawBox(x, y, boxWidth, boxHeight, node.name);
+        
+        // Store the box object linked to its unique ID
+        nodeMap[node.id] = newBox; 
+    });
+
+    // 2. Draw Edges (Connections)
+    data.edges.forEach(edge => {
+        const fromBox = nodeMap[edge.from_id];
+        const toBox = nodeMap[edge.to_id];
+
+        if (fromBox && toBox) {
+            connections.push({from: fromBox, to: toBox, label: edge.label || ''});
+        }
+    });
+
+    // We can't automatically center the unpredictable layout yet, 
+    // but the diagram will draw successfully!
+    currentDiagramTitle = 'AI-Generated System Diagram';
+    redrawDiagram();
+}  
+
+        function drawBox(x, y, width, height, text) {
+    ctx.strokeStyle = '#90CAF9';
+    ctx.strokeRect(x, y, width, height);
+
+    ctx.fillStyle = '#E0E0E0'; // Light gray text color
+    ctx.font = '14px Arial';
+    ctx.textAlign = 'center'; // Center text within the box
+    ctx.textBaseline = 'middle'; // Vertically center text
+    ctx.fillText(text, x + width / 2, y + height / 2); // Position text in the middle of the box
+    const box = {x, y, width, height, text};
+    boxes.push(box);
+     return box;
+}
+
+        function drawArrow(fromX, fromY, toX, toY) {
+    // Colors (should already be set by redrawDiagram, but good to ensure here)
+    ctx.strokeStyle = '#BBDEFB'; // Lighter blue for the line
+    ctx.fillStyle = '#BBDEFB';   // Lighter blue for arrowheads
+
+    // Calculate intersection points with the target box
+    // Assuming 'from' and 'to' are the center points of the boxes
+    // We need to find the intersection point on the perimeter of the 'to' box
+    const fromBox = boxes.find(b =>
+        (b.x + b.width / 2 === fromX) && (b.y + b.height / 2 === fromY)
+    );
+    const toBox = boxes.find(b =>
+        (b.x + b.width / 2 === toX) && (b.y + b.height / 2 === toY)
+    );
+
+    let endX = toX;
+    let endY = toY;
+    let startX = fromX;
+    let startY = fromY;
+
+    // Adjust the start point to the edge of the 'fromBox'
+    if (fromBox) {
+        const angleFrom = Math.atan2(toY - fromY, toX - fromX);
+        const startIntersection = getBoxIntersection(fromBox, angleFrom);
+        if (startIntersection) {
+            startX = startIntersection.x;
+            startY = startIntersection.y;
+        }
+    }
+
+    // Adjust the end point to the edge of the 'toBox'
+    if (toBox) {
+        const angleTo = Math.atan2(fromY - toY, fromX - toX); // Angle from target back to source
+        const endIntersection = getBoxIntersection(toBox, angleTo);
+        if (endIntersection) {
+            endX = endIntersection.x;
+            endY = endIntersection.y;
+        }
+    }
+
+    // Draw the line
+    ctx.beginPath();
+    ctx.moveTo(startX, startY);
+    ctx.lineTo(endX, endY);
+    ctx.stroke();
+
+    // Draw the arrowhead at endX, endY
+    const angle = Math.atan2(endY - startY, endX - startX);
+    ctx.beginPath();
+    ctx.moveTo(endX, endY);
+    ctx.lineTo(endX - 15 * Math.cos(angle - Math.PI / 6), endY - 15 * Math.sin(angle - Math.PI / 6));
+    ctx.lineTo(endX - 15 * Math.cos(angle + Math.PI / 6), endY - 15 * Math.sin(angle + Math.PI / 6));
+    ctx.closePath();
+    ctx.fill();
+}
+   
+   function getBoxIntersection(box, angle) {
+    const boxCenterX = box.x + box.width / 2;
+    const boxCenterY = box.y + box.height / 2;
+
+    const halfWidth = box.width / 2;
+    const halfHeight = box.height / 2;
+
+    const tanAngle = Math.abs(Math.tan(angle));
+
+    let intersectX, intersectY;
+
+    if (tanAngle * halfWidth <= halfHeight) { // Intersects left or right side
+        intersectX = Math.sign(Math.cos(angle)) * halfWidth;
+        intersectY = Math.tan(angle) * intersectX;
+    } else { // Intersects top or bottom side
+        intersectY = Math.sign(Math.sin(angle)) * halfHeight;
+        intersectX = intersectY / Math.tan(angle);
+    }
+
+    return {
+        x: boxCenterX + intersectX,
+        y: boxCenterY + intersectY
+    };
+}
+
+
+       
+
+       function redrawDiagram() {
+    ctx.clearRect(0, 0, canvas.width, canvas.height); // <-- MUST CLEAR HERE!
+
+    // Draw the Title first
+    if (currentDiagramTitle) {
+        ctx.fillStyle = '#E0E0E0';
+        ctx.font = 'bold 24px Arial';
+        ctx.textAlign = 'center';
+        ctx.fillText(currentDiagramTitle, canvas.width / 2, 40);
+        ctx.textAlign = 'start'; // Reset for other text drawing
+    }
+
+    boxes.forEach(box => {
+        // ... (drawing box borders and text)
+    });
+
+    connections.forEach(conn => {
+        // ... (drawing arrows)
+    });
+}
+
+
+
+        function addNewBox() {
+            const text = document.getElementById('newBoxText').value;
+            if (text) {
+                drawBox(50, 50, 120, 60, text);
+                redrawDiagram();
+                document.getElementById('newBoxText').value = '';
+            }
+        }
+
+        function toggleConnectionMode() {
+            isConnecting = !isConnecting;
+            connectionStart = null;
+        }
+
+        canvas.addEventListener('mousedown', function(e) {
+            const rect = canvas.getBoundingClientRect();
+            const mouseX = e.clientX - rect.left;
+            const mouseY = e.clientY - rect.top;
+
+            boxes.forEach(box => {
+                if (mouseX >= box.x && mouseX <= box.x + box.width &&
+                    mouseY >= box.y && mouseY <= box.y + box.height) {
+                    if (isConnecting) {
+                        if (!connectionStart) {
+                            connectionStart = box;
+                        } else {
+                            connections.push({from: connectionStart, to: box});
+                            connectionStart = null;
+                            redrawDiagram();
+                        }
+                    } else {
+                        isDragging = true;
+                        draggedBox = box;
+                        offsetX = mouseX - box.x;
+                        offsetY = mouseY - box.y;
+                    }
+                }
+            });
+        });
+
+        canvas.addEventListener('mousemove', function(e) {
+            if (isDragging) {
+                const rect = canvas.getBoundingClientRect();
+                const mouseX = e.clientX - rect.left;
+                const mouseY = e.clientY - rect.top;
+
+                draggedBox.x = mouseX - offsetX;
+                draggedBox.y = mouseY - offsetY;
+
+                redrawDiagram();
+            }
+        });
+
+        canvas.addEventListener('mouseup', function() {
+            isDragging = false;
+            draggedBox = null;
+        });
+
+        canvas.addEventListener('mouseleave', function() {
+            isDragging = false;
+            draggedBox = null;
+        });
+    </script>
+</body>
+</html>
