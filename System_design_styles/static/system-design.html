@@ -50,8 +50,14 @@ async function generateDiagram() {
         });
 
         if (!response.ok) {
-            const errorData = await response.json();
-            throw new Error(errorData.error || `HTTP error! Status: ${response.status}`);
+            // Added check for non-JSON response (e.g., 500 error page from server)
+            const contentType = response.headers.get("content-type");
+            if (contentType && contentType.indexOf("application/json") !== -1) {
+                 const errorData = await response.json();
+                 throw new Error(errorData.error || `HTTP error! Status: ${response.status}`);
+            } else {
+                 throw new Error(`Server returned status ${response.status} without a JSON error message.`);
+            }
         }
 
         const diagramData = await response.json();
@@ -64,13 +70,14 @@ async function generateDiagram() {
         boxes = [];
         connections = [];
         currentDiagramTitle = 'ERROR';
-        redrawDiagram(); 
-        
+        redrawDiagram(); // This draws the 'ERROR' title
+
+        // Draw specific error text below the title
         ctx.font = '16px Arial';
         ctx.fillStyle = '#FF6B6B'; // Red error color
-        ctx.textAlign = 'center';
+        ctx.textAlign = 'center'; // Center the error message
         ctx.fillText(`Failed to generate: ${error.message}`, canvas.width / 2, 80);
-        ctx.textAlign = 'start';
+        ctx.textAlign = 'start'; // Reset context for future drawing 
     }
 }
  
@@ -86,17 +93,17 @@ function drawAI(data) {
     const horizontalSpacing = 100;
     const verticalSpacing = 120;
     
-    const maxColumns = 4; // Max boxes per row before wrapping
+    const maxColumns = 4;
     
     // --- 1. PRE-CALCULATION PASS: Determine Layout Dimensions ---
     
-    // 1a. Determine the number of rows and columns to find the total width
     const numNodes = data.nodes.length;
-    const numRows = Math.ceil(numNodes / maxColumns);
-    const actualMaxColumns = (numNodes < maxColumns) ? numNodes : maxColumns;
+    
+    // Use Math.min to correctly identify how many nodes are in the widest row
+    const actualColumnsInWidestRow = Math.min(numNodes, maxColumns);
     
     // Calculate the width used by the widest row (boxes + spacing)
-    const totalLayoutWidth = (actualMaxColumns * boxWidth) + ((actualMaxColumns - 1) * horizontalSpacing);
+    const totalLayoutWidth = (actualColumnsInWidestRow * boxWidth) + ((actualColumnsInWidestRow - 1) * horizontalSpacing);
     
     // Calculate the necessary offset to center the entire block
     const offsetX = (canvas.width - totalLayoutWidth) / 2;
@@ -140,6 +147,8 @@ function drawAI(data) {
     currentDiagramTitle = 'AI-Generated System Diagram';
     redrawDiagram();
 }
+
+
 function drawBox(x, y, width, height, text) {
     // 1. Create the box object first
     const newBoxObject = {x, y, width, height, text};
@@ -190,70 +199,69 @@ function drawBox(x, y, width, height, text) {
  // Helper function to find where a line from the center (cx, cy) intersects 
 // the perimeter of the box (targetBox)
 function getIntersection(cx, cy, tx, ty, targetBox) {
-    // CRITICAL: Check if targetBox is defined before accessing its properties
     if (!targetBox) {
-        return { x: tx, y: ty }; // Return center coordinates as a fallback
+        return { x: tx, y: ty }; // Safety fallback
     }
 
     const dx = tx - cx;
     const dy = ty - cy;
-    
-    // Use 'var' for t to ensure broad scope within the function and prevent 
-    // potential initialization conflicts, although 'const' is usually fine.
-    var t; 
-
-    const halfW = targetBox.width / 2; 
+    const halfW = targetBox.width / 2;
     const halfH = targetBox.height / 2;
 
-    const epsilon = 1e-6; // Small value to prevent division by zero
+    const tan_abs = Math.abs(dy / dx); // Absolute value of the slope
+    
+    let intersectX, intersectY;
 
-    // Check intersection with vertical boundaries (left/right)
-    if (Math.abs(dx) > epsilon) {
-        t = halfW / Math.abs(dx);
-        if (Math.abs(t * dy) <= halfH) {
-            // Intersection is on the left or right side
-            return {
-                x: cx + Math.sign(dx) * halfW,
-                y: cy + t * dy
-            };
-        }
-    }
-
-    // Check intersection with horizontal boundaries (top/bottom)
-    if (Math.abs(dy) > epsilon) {
-        t = halfH / Math.abs(dy);
-        if (Math.abs(t * dx) <= halfW) {
-            // Intersection is on the top or bottom side
-            return {
-                x: cx + t * dx,
-                y: cy + Math.sign(dy) * halfH
-            };
-        }
+    // Check if the line is steeper than the box's aspect ratio
+    // If true, the intersection is on the TOP or BOTTOM edge.
+    if (tan_abs * halfW > halfH) {
+        // Intersection is with the horizontal edges (Top/Bottom)
+        intersectY = Math.sign(dy) * halfH; // Half height, signed based on direction (up or down)
+        // Calculate the corresponding X position: X = Y / tan(angle)
+        intersectX = intersectY / (dy / dx); 
+    } 
+    // Otherwise, the intersection is on the LEFT or RIGHT edge.
+    else {
+        // Intersection is with the vertical edges (Left/Right)
+        intersectX = Math.sign(dx) * halfW; // Half width, signed based on direction (left or right)
+        // Calculate the corresponding Y position: Y = X * tan(angle)
+        intersectY = intersectX * (dy / dx);
     }
     
-    // Fallback: This is the center point (or the original intended end point)
-    return { x: tx, y: ty }; 
+    // The intersection point is relative to the box center (cx, cy)
+    // We want the point on the targetBox.
+    return {
+        x: targetBox.x + halfW + intersectX,
+        y: targetBox.y + halfH + intersectY
+    };
 }
-
-        function drawArrow(fromX, fromY, toX, toY, targetBox) {
-    // Reset colors (for safety, though redrawDiagram should handle this)
-    
+       function drawArrow(fromX, fromY, toX, toY, sourceBox, targetBox) { // <-- NEW SIGNATURE
+    // Reset colors (for safety)
     ctx.strokeStyle = '#BBDEFB'; 
-    ctx.fillStyle = '#BBDEFB';   
-    // 1. Calculate the actual end point on the box perimeter
-    const intersection = getIntersection(fromX, fromY, toX, toY, targetBox);
-    const endX = intersection.x;
-    const endY = intersection.y;
+    ctx.fillStyle = '#BBDEFB';   
     
-    // 2. Draw the Line
+    // 1. Calculate the actual end point on the target box perimeter
+    const endIntersection = getIntersection(fromX, fromY, toX, toY, targetBox);
+    const endX = endIntersection.x;
+    const endY = endIntersection.y;
+
+    // 2. Calculate the actual start point on the source box perimeter
+    // We calculate the intersection using the line from source CENTER to target CENTER
+    const startIntersection = getIntersection(fromX, fromY, toX, toY, sourceBox);
+    const startX = startIntersection.x;
+    const startY = startIntersection.y;
+    
+    // 3. Draw the Line
     ctx.beginPath();
-    // Start line slightly away from source box for better visual look (optional)
-    ctx.moveTo(fromX, fromY); 
+    // Start line at the edge of the source box
+    ctx.moveTo(startX, startY); 
+    // End line at the edge of the target box
     ctx.lineTo(endX, endY);
     ctx.stroke();
 
-    // 3. Draw the Arrowhead at the calculated edge (endX, endY)
-    const angle = Math.atan2(endY - fromY, endX - fromX);
+    // 4. Draw the Arrowhead at the calculated edge (endX, endY)
+    // The angle must be calculated based on the start and end of the line segment
+    const angle = Math.atan2(endY - startY, endX - startX);
     ctx.beginPath();
     ctx.moveTo(endX, endY);
     ctx.lineTo(endX - 15 * Math.cos(angle - Math.PI / 6), endY - 15 * Math.sin(angle - Math.PI / 6));
@@ -261,36 +269,8 @@ function getIntersection(cx, cy, tx, ty, targetBox) {
     ctx.closePath();
     ctx.fill();
 }
-
  
    
-   function getBoxIntersection(box, angle) {
-    const boxCenterX = box.x + box.width / 2;
-    const boxCenterY = box.y + box.height / 2;
-
-    const halfWidth = box.width / 2;
-    const halfHeight = box.height / 2;
-
-    const tanAngle = Math.abs(Math.tan(angle));
-
-    let intersectX, intersectY;
-
-    if (tanAngle * halfWidth <= halfHeight) { // Intersects left or right side
-        intersectX = Math.sign(Math.cos(angle)) * halfWidth;
-        intersectY = Math.tan(angle) * intersectX;
-    } else { // Intersects top or bottom side
-        intersectY = Math.sign(Math.sin(angle)) * halfHeight;
-        intersectX = intersectY / Math.tan(angle);
-    }
-
-    return {
-        x: boxCenterX + intersectX,
-        y: boxCenterY + intersectY
-    };
-}
-
-
-       
 
       function redrawDiagram() {
     // 1. Clear the canvas
@@ -337,10 +317,11 @@ function getIntersection(cx, cy, tx, ty, targetBox) {
     const toCenterY = conn.to.y + conn.to.height / 2;
         // Call drawArrow with the calculated center coordinates
         drawArrow(
-        fromCenterX, fromCenterY, 
-        toCenterX, toCenterY, 
-        conn.to // <-- PASS THE TARGET BOX OBJECT HERE
-    );
+    fromCenterX, fromCenterY, 
+    toCenterX, toCenterY, 
+    conn.from, // <-- PASS SOURCE BOX
+    conn.to    // <-- PASS TARGET BOX
+);
         
         // NOTE: If you decide to add connection labels later, this is where they go!
     });
