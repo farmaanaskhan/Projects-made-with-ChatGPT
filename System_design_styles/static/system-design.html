@@ -16,7 +16,7 @@
         <button onclick="toggleConnectionMode()">Toggle Connection Mode</button>
     </div>
     <canvas id="diagramCanvas" width="1500" height="600"></canvas>
-
+    
     <script>
         const canvas = document.getElementById('diagramCanvas');
         const ctx = canvas.getContext('2d');
@@ -73,6 +73,7 @@ async function generateDiagram() {
         ctx.textAlign = 'start';
     }
 }
+ 
 
 function drawAI(data) {
     boxes = [];
@@ -86,15 +87,31 @@ function drawAI(data) {
     const verticalSpacing = 120;
     
     const maxColumns = 4; // Max boxes per row before wrapping
+    
+    // --- 1. PRE-CALCULATION PASS: Determine Layout Dimensions ---
+    
+    // 1a. Determine the number of rows and columns to find the total width
+    const numNodes = data.nodes.length;
+    const numRows = Math.ceil(numNodes / maxColumns);
+    const actualMaxColumns = (numNodes < maxColumns) ? numNodes : maxColumns;
+    
+    // Calculate the width used by the widest row (boxes + spacing)
+    const totalLayoutWidth = (actualMaxColumns * boxWidth) + ((actualMaxColumns - 1) * horizontalSpacing);
+    
+    // Calculate the necessary offset to center the entire block
+    const offsetX = (canvas.width - totalLayoutWidth) / 2;
+    
+    // Initial starting positions (shifted by offsetX)
+    let currentX = offsetX; 
+    let currentY = 100; // Start position from the top
 
-    let currentX = 50; 
-    let currentY = 100;
+    
+    // --- 2. DRAWING PASS: Place Nodes and Build the Map ---
 
-    // 1. Draw Nodes (Boxes) and Build the Node Map
     data.nodes.forEach((node, index) => {
         // Simple auto-layout: Wrap after maxColumns
         if (index > 0 && index % maxColumns === 0) {
-            currentX = 50; // Reset X for new row
+            currentX = offsetX; // Reset X for new row, applying the offset
             currentY += boxHeight + verticalSpacing; // Move down
         } else if (index > 0) {
             currentX += boxWidth + horizontalSpacing; // Move right
@@ -107,20 +124,20 @@ function drawAI(data) {
         nodeMap[node.id] = newBox; 
     });
 
-    // 2. Draw Edges (Connections)
+    // --- 3. CONNECTION PASS ---
+
     data.edges.forEach(edge => {
         const fromBox = nodeMap[edge.from_id];
         const toBox = nodeMap[edge.to_id];
 
         if (fromBox && toBox) {
-            // Note: The 'label' property is part of the connections array but not used in drawArrow yet.
             connections.push({from: fromBox, to: toBox, label: edge.label || ''});
         } else {
             console.error(`Connection error: Could not find node with ID ${edge.from_id} or ${edge.to_id}`);
         }
     });
 
-    currentDiagramTitle = 'Generated System Diagram';
+    currentDiagramTitle = 'AI-Generated System Diagram';
     redrawDiagram();
 }
 
@@ -130,68 +147,103 @@ function drawAI(data) {
 
     ctx.fillStyle = '#E0E0E0'; // Light gray text color
     ctx.font = '14px Arial';
-    ctx.textAlign = 'center'; // Center text within the box
-    ctx.textBaseline = 'middle'; // Vertically center text
-    ctx.fillText(text, x + width / 2, y + height / 2); // Position text in the middle of the box
+    ctx.textAlign = 'center';
+    ctx.textBaseline = 'top';// Vertically center text
+     // Position text in the middle of the box
+    const lineHeight = 16; // Based on 14px font, 16 is a good line height
+    const textX = box.x + box.width / 2; // Center X position
+    const textY = box.y + 10; // Start 10px from the top of the box for padding
     const box = {x, y, width, height, text};
+    wrapText(ctx, box.text, textX, textY, box.width - 20, lineHeight);
     boxes.push(box);
     return box;
 }
 
-        function drawArrow(fromX, fromY, toX, toY) {
-    // Colors (should already be set by redrawDiagram, but good to ensure here)
-    ctx.strokeStyle = '#BBDEFB'; // Lighter blue for the line
-    ctx.fillStyle = '#BBDEFB';   // Lighter blue for arrowheads
+ function wrapText(context, text, x, y, maxWidth, lineHeight) {
+    const words = text.split(' ');
+    let line = '';
 
-    // Calculate intersection points with the target box
-    // Assuming 'from' and 'to' are the center points of the boxes
-    // We need to find the intersection point on the perimeter of the 'to' box
-    const fromBox = boxes.find(b =>
-        (b.x + b.width / 2 === fromX) && (b.y + b.height / 2 === fromY)
-    );
-    const toBox = boxes.find(b =>
-        (b.x + b.width / 2 === toX) && (b.y + b.height / 2 === toY)
-    );
-
-    let endX = toX;
-    let endY = toY;
-    let startX = fromX;
-    let startY = fromY;
-
-    // Adjust the start point to the edge of the 'fromBox'
-    if (fromBox) {
-        const angleFrom = Math.atan2(toY - fromY, toX - fromX);
-        const startIntersection = getBoxIntersection(fromBox, angleFrom);
-        if (startIntersection) {
-            startX = startIntersection.x;
-            startY = startIntersection.y;
+    for(let n = 0; n < words.length; n++) {
+        const testLine = line + words[n] + ' ';
+        const metrics = context.measureText(testLine);
+        const testWidth = metrics.width;
+        
+        if (testWidth > maxWidth && n > 0) {
+            context.fillText(line, x, y);
+            line = words[n] + ' ';
+            y += lineHeight;
+        } else {
+            line = testLine;
         }
     }
+    context.fillText(line, x, y);
+}
 
-    // Adjust the end point to the edge of the 'toBox'
-    if (toBox) {
-        const angleTo = Math.atan2(fromY - toY, fromX - toX); // Angle from target back to source
-        const endIntersection = getBoxIntersection(toBox, angleTo);
-        if (endIntersection) {
-            endX = endIntersection.x;
-            endY = endIntersection.y;
-        }
-    }
-
-    // Draw the line
+        function drawArrow(fromX, fromY, toX, toY, targetBox) {
+    // Reset colors (for safety, though redrawDiagram should handle this)
+    
+    ctx.strokeStyle = '#BBDEFB'; 
+    ctx.fillStyle = '#BBDEFB';   
+    // 1. Calculate the actual end point on the box perimeter
+    const intersection = getIntersection(fromX, fromY, toX, toY, targetBox);
+    const endX = intersection.x;
+    const endY = intersection.y;
+    
+    // 2. Draw the Line
     ctx.beginPath();
-    ctx.moveTo(startX, startY);
+    // Start line slightly away from source box for better visual look (optional)
+    ctx.moveTo(fromX, fromY); 
     ctx.lineTo(endX, endY);
     ctx.stroke();
 
-    // Draw the arrowhead at endX, endY
-    const angle = Math.atan2(endY - startY, endX - startX);
+    // 3. Draw the Arrowhead at the calculated edge (endX, endY)
+    const angle = Math.atan2(endY - fromY, endX - fromX);
     ctx.beginPath();
     ctx.moveTo(endX, endY);
     ctx.lineTo(endX - 15 * Math.cos(angle - Math.PI / 6), endY - 15 * Math.sin(angle - Math.PI / 6));
     ctx.lineTo(endX - 15 * Math.cos(angle + Math.PI / 6), endY - 15 * Math.sin(angle + Math.PI / 6));
     ctx.closePath();
     ctx.fill();
+}
+
+  // Helper function to find where a line from the center (cx, cy) intersects 
+// the perimeter of the box (targetBox)
+function getIntersection(cx, cy, tx, ty, targetBox) {
+    const dx = tx - cx;
+    const dy = ty - cy;
+    const halfW = targetBox.width / 2;
+    const halfH = targetBox.height / 2;
+
+    // Use a small epsilon value to avoid division by zero
+    const epsilon = 1e-6;
+
+    let t;
+
+    // Check intersection with vertical boundaries (left/right)
+    if (Math.abs(dx) > epsilon) {
+        t = halfW / Math.abs(dx);
+        if (Math.abs(t * dy) <= halfH) {
+            // Intersection is on the left or right side
+            return {
+                x: cx + Math.sign(dx) * halfW,
+                y: cy + t * dy
+            };
+        }
+    }
+
+    // Check intersection with horizontal boundaries (top/bottom)
+    if (Math.abs(dy) > epsilon) {
+        t = halfH / Math.abs(dy);
+        if (Math.abs(t * dx) <= halfW) {
+            // Intersection is on the top or bottom side
+            return {
+                x: cx + t * dx,
+                y: cy + Math.sign(dy) * halfH
+            };
+        }
+    }
+    // Fallback to center if calculation fails (shouldn't happen)
+    return { x: tx, y: ty };
 }
    
    function getBoxIntersection(box, angle) {
@@ -222,24 +274,57 @@ function drawAI(data) {
 
        
 
-       function redrawDiagram() {
-    ctx.clearRect(0, 0, canvas.width, canvas.height); // <-- MUST CLEAR HERE!
+      function redrawDiagram() {
+    // 1. Clear the canvas
+    ctx.clearRect(0, 0, canvas.width, canvas.height); 
 
-    // Draw the Title first
+    // 2. Draw the Title
     if (currentDiagramTitle) {
         ctx.fillStyle = '#E0E0E0';
         ctx.font = 'bold 24px Arial';
         ctx.textAlign = 'center';
         ctx.fillText(currentDiagramTitle, canvas.width / 2, 40);
-        ctx.textAlign = 'start'; // Reset for other text drawing
+        ctx.textAlign = 'start'; // Reset for box text
     }
 
+    // 3. Draw all Boxes
     boxes.forEach(box => {
-        // ... (drawing box borders and text)
+        // Set styles for box border
+        ctx.strokeStyle = '#90CAF9'; // Light blue border
+        ctx.strokeRect(box.x, box.y, box.width, box.height);
+        
+        // Set styles for box text
+        ctx.fillStyle = '#E0E0E0'; // Light gray text
+        ctx.font = '14px Arial';
+        ctx.textAlign = 'center';
+        ctx.textBaseline = 'top'; // MUST change to 'top' for wrapping
+        const lineHeight = 16; // Based on 14px font, 16 is a good line height
+        const textX = box.x + box.width / 2; // Center X position
+        const textY = box.y + 10; // Start 10px from the top of the box for padding
+        
+        // Draw text in the middle of the box
+       wrapText(ctx, box.text, textX, textY, box.width - 20, lineHeight);
     });
 
+    // 4. Draw all Connections (Arrows)
     connections.forEach(conn => {
-        // ... (drawing arrows)
+        // Ensure colors are set before drawing the arrow
+        ctx.strokeStyle = '#BBDEFB'; // Lighter blue for line
+        ctx.fillStyle = '#BBDEFB';   // Lighter blue for arrowhead
+        
+         // Calculate center coordinates
+    const fromCenterX = conn.from.x + conn.from.width / 2;
+    const fromCenterY = conn.from.y + conn.from.height / 2;
+    const toCenterX = conn.to.x + conn.to.width / 2;
+    const toCenterY = conn.to.y + conn.to.height / 2;
+        // Call drawArrow with the calculated center coordinates
+        drawArrow(
+        fromCenterX, fromCenterY, 
+        toCenterX, toCenterY, 
+        conn.to // <-- PASS THE TARGET BOX OBJECT HERE
+    );
+        
+        // NOTE: If you decide to add connection labels later, this is where they go!
     });
 }
 
