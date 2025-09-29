@@ -140,23 +140,31 @@ function drawAI(data) {
     currentDiagramTitle = 'AI-Generated System Diagram';
     redrawDiagram();
 }
-
-        function drawBox(x, y, width, height, text) {
+function drawBox(x, y, width, height, text) {
+    // 1. Create the box object first
+    const newBoxObject = {x, y, width, height, text};
+    
+    // 2. Draw the Box Border (This is necessary for the initial drawing and manual add)
     ctx.strokeStyle = '#90CAF9';
     ctx.strokeRect(x, y, width, height);
 
-    ctx.fillStyle = '#E0E0E0'; // Light gray text color
+    // 3. Set Text Styles
+    ctx.fillStyle = '#E0E0E0';
     ctx.font = '14px Arial';
     ctx.textAlign = 'center';
-    ctx.textBaseline = 'top';// Vertically center text
-     // Position text in the middle of the box
-    const lineHeight = 16; // Based on 14px font, 16 is a good line height
-    const textX = box.x + box.width / 2; // Center X position
-    const textY = box.y + 10; // Start 10px from the top of the box for padding
-    const box = {x, y, width, height, text};
-    wrapText(ctx, box.text, textX, textY, box.width - 20, lineHeight);
-    boxes.push(box);
-    return box;
+    ctx.textBaseline = 'top';
+    
+    // 4. Calculate Text Position
+    const lineHeight = 16;
+    const textX = newBoxObject.x + newBoxObject.width / 2;
+    const textY = newBoxObject.y + 10;
+    
+    // 5. Draw the Wrapped Text (THIS WAS THE MISSING STEP)
+    wrapText(ctx, newBoxObject.text, textX, textY, newBoxObject.width - 20, lineHeight); 
+    
+    // 6. Add to Global Array and Return
+    boxes.push(newBoxObject);
+    return newBoxObject;
 }
 
  function wrapText(context, text, x, y, maxWidth, lineHeight) {
@@ -177,6 +185,54 @@ function drawAI(data) {
         }
     }
     context.fillText(line, x, y);
+}
+
+ // Helper function to find where a line from the center (cx, cy) intersects 
+// the perimeter of the box (targetBox)
+function getIntersection(cx, cy, tx, ty, targetBox) {
+    // CRITICAL: Check if targetBox is defined before accessing its properties
+    if (!targetBox) {
+        return { x: tx, y: ty }; // Return center coordinates as a fallback
+    }
+
+    const dx = tx - cx;
+    const dy = ty - cy;
+    
+    // Use 'var' for t to ensure broad scope within the function and prevent 
+    // potential initialization conflicts, although 'const' is usually fine.
+    var t; 
+
+    const halfW = targetBox.width / 2; 
+    const halfH = targetBox.height / 2;
+
+    const epsilon = 1e-6; // Small value to prevent division by zero
+
+    // Check intersection with vertical boundaries (left/right)
+    if (Math.abs(dx) > epsilon) {
+        t = halfW / Math.abs(dx);
+        if (Math.abs(t * dy) <= halfH) {
+            // Intersection is on the left or right side
+            return {
+                x: cx + Math.sign(dx) * halfW,
+                y: cy + t * dy
+            };
+        }
+    }
+
+    // Check intersection with horizontal boundaries (top/bottom)
+    if (Math.abs(dy) > epsilon) {
+        t = halfH / Math.abs(dy);
+        if (Math.abs(t * dx) <= halfW) {
+            // Intersection is on the top or bottom side
+            return {
+                x: cx + t * dx,
+                y: cy + Math.sign(dy) * halfH
+            };
+        }
+    }
+    
+    // Fallback: This is the center point (or the original intended end point)
+    return { x: tx, y: ty }; 
 }
 
         function drawArrow(fromX, fromY, toX, toY, targetBox) {
@@ -206,45 +262,7 @@ function drawAI(data) {
     ctx.fill();
 }
 
-  // Helper function to find where a line from the center (cx, cy) intersects 
-// the perimeter of the box (targetBox)
-function getIntersection(cx, cy, tx, ty, targetBox) {
-    const dx = tx - cx;
-    const dy = ty - cy;
-    const halfW = targetBox.width / 2;
-    const halfH = targetBox.height / 2;
-
-    // Use a small epsilon value to avoid division by zero
-    const epsilon = 1e-6;
-
-    let t;
-
-    // Check intersection with vertical boundaries (left/right)
-    if (Math.abs(dx) > epsilon) {
-        t = halfW / Math.abs(dx);
-        if (Math.abs(t * dy) <= halfH) {
-            // Intersection is on the left or right side
-            return {
-                x: cx + Math.sign(dx) * halfW,
-                y: cy + t * dy
-            };
-        }
-    }
-
-    // Check intersection with horizontal boundaries (top/bottom)
-    if (Math.abs(dy) > epsilon) {
-        t = halfH / Math.abs(dy);
-        if (Math.abs(t * dx) <= halfW) {
-            // Intersection is on the top or bottom side
-            return {
-                x: cx + t * dx,
-                y: cy + Math.sign(dy) * halfH
-            };
-        }
-    }
-    // Fallback to center if calculation fails (shouldn't happen)
-    return { x: tx, y: ty };
-}
+ 
    
    function getBoxIntersection(box, angle) {
     const boxCenterX = box.x + box.width / 2;
@@ -288,23 +306,23 @@ function getIntersection(cx, cy, tx, ty, targetBox) {
     }
 
     // 3. Draw all Boxes
-    boxes.forEach(box => {
-        // Set styles for box border
-        ctx.strokeStyle = '#90CAF9'; // Light blue border
-        ctx.strokeRect(box.x, box.y, box.width, box.height);
-        
-        // Set styles for box text
-        ctx.fillStyle = '#E0E0E0'; // Light gray text
-        ctx.font = '14px Arial';
-        ctx.textAlign = 'center';
-        ctx.textBaseline = 'top'; // MUST change to 'top' for wrapping
-        const lineHeight = 16; // Based on 14px font, 16 is a good line height
-        const textX = box.x + box.width / 2; // Center X position
-        const textY = box.y + 10; // Start 10px from the top of the box for padding
-        
-        // Draw text in the middle of the box
-       wrapText(ctx, box.text, textX, textY, box.width - 20, lineHeight);
-    });
+    boxes.forEach(node => { 
+    // Set styles for box border
+    ctx.strokeStyle = '#90CAF9'; 
+    ctx.strokeRect(node.x, node.y, node.width, node.height); // Use node.x, node.y, etc.
+    
+    // Set styles for box text
+    ctx.fillStyle = '#E0E0E0';
+    ctx.font = '14px Arial';
+    ctx.textAlign = 'center';
+    ctx.textBaseline = 'top'; 
+    const lineHeight = 16;
+    const textX = node.x + node.width / 2;
+    const textY = node.y + 10;
+    
+    // Draw text in the middle of the box
+    wrapText(ctx, node.text, textX, textY, node.width - 20, lineHeight);
+});
 
     // 4. Draw all Connections (Arrows)
     connections.forEach(conn => {
