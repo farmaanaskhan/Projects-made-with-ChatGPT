@@ -46,31 +46,59 @@
             });
         }
 
-        function startVisualization(method) {
-            clearInterval(intervalId);
-            renderArray();
-            document.getElementById('status').textContent = '';
-            
-            let i = 0, j = method === 'twoPointers' ? array.length - 1 : 0;
-            
-            intervalId = setInterval(() => {
-                if (method === 'linear') {
-                    linearSearchStep(i, j);
-                    j++;
-                    if (j === array.length) {
-                        i++;
-                        j = i + 1;
-                    }
-                } else if (method === 'twoPointers') {
-                    twoPointersStep(i, j);
-                }
-                
-                if (i >= array.length - 1 || j < 0) {
-                    clearInterval(intervalId);
-                    document.getElementById('status').textContent = 'No solution found';
-                }
-            }, 1000);
+       function startVisualization(method) {
+    clearInterval(intervalId);
+    renderArray();
+    document.getElementById('status').textContent = '';
+    
+    // Check if the array is sorted for Two Pointers method
+    if (method === 'twoPointers') {
+        const isSorted = array.every((val, i, arr) => !i || val >= arr[i - 1]);
+        if (!isSorted) {
+            document.getElementById('status').textContent = 'Error: Two Pointers requires a sorted array.';
+            return;
         }
+    }
+
+    let i = 0;
+    let j = 1; // Start inner pointer at 1 for Linear Search
+    
+    if (method === 'twoPointers') {
+        i = 0;
+        j = array.length - 1; // Start pointers at opposite ends for Two Pointers
+    }
+
+    intervalId = setInterval(() => {
+        if (method === 'linear') {
+            // Linear Search (O(n^2) nested loop approach)
+            if (i >= array.length - 1) {
+                clearInterval(intervalId);
+                document.getElementById('status').textContent = 'No solution found';
+                return;
+            }
+            
+            linearSearchStep(i, j);
+            
+            j++;
+            if (j >= array.length) {
+                i++;
+                j = i + 1; // Reset j to the next element after i
+            }
+
+        } else if (method === 'twoPointers') {
+            // Two Pointers (O(n) approach on sorted array)
+            if (i >= j) { // Pointers crossed or met
+                clearInterval(intervalId);
+                document.getElementById('status').textContent = 'No solution found';
+                return;
+            }
+            twoPointersStep(i, j);
+            i = twoPointersStep_i; // Use values updated by the step function
+            j = twoPointersStep_j;
+        }
+    }, 1000);
+}
+
 
         function linearSearchStep(i, j) {
             highlightElements(i, j);
