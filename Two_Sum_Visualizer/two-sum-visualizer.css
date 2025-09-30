@@ -1,0 +1,108 @@
+body {
+    font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    padding: 30px;
+    background-color: #f4f7f6; /* Light gray background */
+    color: #333;
+}
+
+h1 {
+    color: #2c3e50; /* Dark blue header */
+    margin-bottom: 25px;
+    border-bottom: 2px solid #3498db;
+    padding-bottom: 10px;
+}
+
+/* Input and Controls Styling */
+div {
+    margin-bottom: 15px;
+    display: flex;
+    align-items: center;
+    gap: 10px;
+}
+
+label {
+    font-weight: bold;
+    color: #555;
+}
+
+input[type="text"], input[type="number"] {
+    padding: 8px;
+    border: 1px solid #ccc;
+    border-radius: 4px;
+    width: 150px;
+    transition: border-color 0.3s;
+}
+
+input:focus {
+    border-color: #3498db;
+    outline: none;
+}
+
+button {
+    background-color: #3498db; /* Blue primary color */
+    color: white;
+    border: none;
+    border-radius: 4px;
+    padding: 10px 15px;
+    margin: 5px;
+    font-size: 16px;
+    cursor: pointer;
+    transition: background-color 0.3s, transform 0.1s;
+}
+
+button:hover {
+    background-color: #2980b9;
+    transform: translateY(-1px);
+}
+
+/* Array Visualization */
+#array-container {
+    display: flex;
+    margin: 40px 0;
+    min-height: 60px; /* Ensure container space is reserved */
+    padding: 10px;
+    border: 1px solid #ddd;
+    border-radius: 8px;
+    box-shadow: 0 2px 4px rgba(0, 0, 0, 0.1);
+}
+
+.array-element {
+    width: 50px; /* Slightly wider */
+    height: 50px; /* Slightly taller */
+    border: 2px solid #7f8c8d; /* Subtle border */
+    background-color: #ecf0f1; /* Off-white block color */
+    display: flex;
+    justify-content: center;
+    align-items: center;
+    margin: 0 8px;
+    font-size: 18px;
+    font-weight: bold;
+    border-radius: 6px;
+    transition: background-color 0.3s, border-color 0.3s, transform 0.2s;
+    box-shadow: 0 1px 3px rgba(0, 0, 0, 0.05);
+}
+
+/* Visualization Feedback */
+.highlight {
+    background-color: #f1c40f; /* Yellow for elements currently checked */
+    border-color: #e67e22;
+    transform: scale(1.05);
+}
+
+.solution {
+    background-color: #2ecc71; /* Green for the final solution */
+    border-color: #27ae60;
+    color: white;
+    transform: scale(1.1);
+    box-shadow: 0 0 10px #2ecc71;
+}
+
+#status {
+    margin-top: 20px;
+    font-size: 18px;
+    font-weight: bold;
+    color: #e74c3c; /* Red for status messages (No solution found) */
+}
