@@ -1,108 +1,201 @@
 body {
-    font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+    font-family: 'Poppins', sans-serif; /* A more modern font */
     display: flex;
     flex-direction: column;
     align-items: center;
     padding: 30px;
-    background-color: #f4f7f6; /* Light gray background */
-    color: #333;
+    background-color: #f0f4f8; /* Very light, cool background */
+    color: #2c3e50;
 }
 
 h1 {
-    color: #2c3e50; /* Dark blue header */
-    margin-bottom: 25px;
-    border-bottom: 2px solid #3498db;
+    color: #007bff; /* Bright blue header */
+    margin-bottom: 30px;
     padding-bottom: 10px;
+    border-bottom: 3px solid #007bff;
+    letter-spacing: 1px;
+    font-weight: 700;
+    text-shadow: 1px 1px 2px rgba(0, 0, 0, 0.1);
 }
 
 /* Input and Controls Styling */
 div {
-    margin-bottom: 15px;
+    margin-bottom: 25px; /* Increased margin for better spacing */
     display: flex;
     align-items: center;
-    gap: 10px;
+    gap: 20px; /* Increased gap between label and input */
+    
+    /* Added a container box for a visual block look */
+    padding: 15px 30px; 
+    background: linear-gradient(135deg, #e6f7ff, #ffffff); /* Subtle light blue gradient */
+    border-radius: 12px; 
+    box-shadow: 0 4px 15px rgba(0, 0, 0, 0.1); /* Soft shadow for lift */
+    transition: box-shadow 0.3s ease;
+}
+
+div:hover {
+    box-shadow: 0 6px 20px rgba(0, 0, 0, 0.15); /* Shadow lifts on hover */
 }
 
 label {
-    font-weight: bold;
-    color: #555;
+    font-weight: 600; /* Bolder font */
+    color: #007bff; /* Bright blue text */
+    min-width: 220px; /* Ensures labels are aligned */
+    font-size: 1.1em;
+    text-shadow: 0.5px 0.5px 1px rgba(0, 0, 0, 0.05);
 }
 
 input[type="text"], input[type="number"] {
-    padding: 8px;
-    border: 1px solid #ccc;
-    border-radius: 4px;
-    width: 150px;
-    transition: border-color 0.3s;
+    padding: 12px 15px; /* Larger padding for a touch target */
+    border: 1px solid #007bff; /* Blue border */
+    border-radius: 20px; /* Pill-shaped input fields */
+    width: 250px; /* Wider input fields */
+    transition: all 0.3s ease;
+    background-color: #f8f9fa; /* Very light background for contrast */
+    font-size: 1.1em;
 }
 
 input:focus {
-    border-color: #3498db;
+    border: 2px solid #0056b3; /* Darker blue border on focus */
+    box-shadow: 0 0 10px rgba(0, 123, 255, 0.7); /* Neon blue glow effect */
+    background-color: white;
     outline: none;
 }
 
 button {
-    background-color: #3498db; /* Blue primary color */
+    /* Gradient background for a modern look */
+    background: linear-gradient(145deg, #007bff, #0056b3);
     color: white;
     border: none;
-    border-radius: 4px;
-    padding: 10px 15px;
-    margin: 5px;
+    border-radius: 25px; /* Pill-shaped buttons */
+    padding: 12px 25px;
+    margin: 8px;
     font-size: 16px;
+    font-weight: 600;
     cursor: pointer;
-    transition: background-color 0.3s, transform 0.1s;
+    box-shadow: 0 4px 10px rgba(0, 0, 0, 0.2); /* Stronger shadow */
+    transition: all 0.3s ease;
+    text-transform: uppercase;
+    letter-spacing: 0.5px;
 }
 
 button:hover {
-    background-color: #2980b9;
-    transform: translateY(-1px);
+    background: linear-gradient(145deg, #0056b3, #007bff);
+    transform: translateY(-3px) scale(1.02);
+    box-shadow: 0 6px 15px rgba(0, 0, 0, 0.3);
 }
 
-/* Array Visualization */
+/* Array Visualization Container */
 #array-container {
     display: flex;
-    margin: 40px 0;
-    min-height: 60px; /* Ensure container space is reserved */
-    padding: 10px;
-    border: 1px solid #ddd;
-    border-radius: 8px;
-    box-shadow: 0 2px 4px rgba(0, 0, 0, 0.1);
+    margin: 50px 0;
+    min-height: 80px;
+    padding: 20px;
+    border-radius: 15px;
+    background-color: white;
+    box-shadow: 0 10px 25px rgba(0, 0, 0, 0.15); /* Soft, pronounced shadow */
 }
 
 .array-element {
-    width: 50px; /* Slightly wider */
-    height: 50px; /* Slightly taller */
-    border: 2px solid #7f8c8d; /* Subtle border */
-    background-color: #ecf0f1; /* Off-white block color */
+    width: 60px; /* Larger elements */
+    height: 60px;
+    border: 3px solid #bdc3c7;
+    background-color: #ecf0f1;
     display: flex;
     justify-content: center;
     align-items: center;
-    margin: 0 8px;
-    font-size: 18px;
-    font-weight: bold;
-    border-radius: 6px;
-    transition: background-color 0.3s, border-color 0.3s, transform 0.2s;
-    box-shadow: 0 1px 3px rgba(0, 0, 0, 0.05);
+    margin: 0 10px;
+    font-size: 24px; /* Larger text */
+    font-weight: 700;
+    border-radius: 10px;
+    transition: all 0.4s cubic-bezier(0.175, 0.885, 0.32, 1.275); /* Bouncy transition */
+    box-shadow: 0 3px 6px rgba(0, 0, 0, 0.1);
 }
 
-/* Visualization Feedback */
+/* Visualization Feedback (Flashier colors) */
 .highlight {
-    background-color: #f1c40f; /* Yellow for elements currently checked */
+    background-color: #f39c12; /* Brighter orange/yellow */
     border-color: #e67e22;
-    transform: scale(1.05);
+    color: white;
+    transform: scale(1.1) rotateZ(-2deg); /* Added slight rotation */
+    box-shadow: 0 0 15px rgba(243, 156, 18, 0.8);
 }
 
 .solution {
-    background-color: #2ecc71; /* Green for the final solution */
-    border-color: #27ae60;
+    background-color: #27ae60; /* Deep green */
+    border-color: #1abc9c;
     color: white;
-    transform: scale(1.1);
-    box-shadow: 0 0 10px #2ecc71;
+    transform: scale(1.2); /* Larger scale */
+    box-shadow: 0 0 20px #2ecc71;
 }
 
 #status {
-    margin-top: 20px;
-    font-size: 18px;
-    font-weight: bold;
-    color: #e74c3c; /* Red for status messages (No solution found) */
+    margin-top: 25px;
+    font-size: 20px;
+    font-weight: 700;
+    color: #e74c3c;
+    text-shadow: 0 0 5px rgba(231, 76, 60, 0.5);
+}
+/* --- Tooltip Styling (Flashy Descriptions on Hover) --- */
+
+/* Make the buttons the reference point for the tooltip position */
+button {
+    position: relative; /* Essential for positioning the tooltip relative to the button */
+}
+
+/* Tooltip appearance (using ::after) */
+button::after {
+    content: attr(data-title); /* Pulls the text from the data-title attribute */
+    
+    /* Positioning and Layout */
+    position: absolute;
+    bottom: 100%; /* Position above the button */
+    left: 50%;
+    transform: translateX(-50%) translateY(-10px); /* Center horizontally, push up */
+    
+    /* Size and Appearance */
+    white-space: normal; /* Allows text to wrap */
+    width: 200px; /* Fixed width for the tooltip box */
+    padding: 10px;
+    border-radius: 8px;
+    
+    /* Colors and Style */
+    background-color: #2c3e50; /* Dark background */
+    color: white; /* Light text */
+    font-size: 14px;
+    text-align: center;
+    font-weight: 400;
+    
+    /* Visual Effects and Visibility */
+    opacity: 0; /* Starts hidden */
+    visibility: hidden; /* Ensures it doesn't interfere with mouse events */
+    transition: opacity 0.3s, transform 0.3s; /* Smooth fade and slight slide effect */
+    z-index: 10; /* Ensures it appears above other elements */
+    pointer-events: none; /* Allows mouse to pass through the tooltip */
+    box-shadow: 0 4px 12px rgba(0, 0, 0, 0.4);
+}
+
+/* Tooltip arrow (optional, using ::before) */
+button::before {
+    content: '';
+    position: absolute;
+    left: 50%;
+    bottom: 100%; /* Position below the ::after box */
+    transform: translateX(-50%) translateY(3px);
+    border-width: 5px;
+    border-style: solid;
+    border-color: #2c3e50 transparent transparent transparent; /* Creates a downward-pointing arrow */
+    opacity: 0;
+    visibility: hidden;
+    transition: opacity 0.3s, visibility 0.3s;
+    z-index: 11;
+    pointer-events: none;
+}
+
+/* State change: Show tooltip on hover */
+button:hover::after,
+button:hover::before {
+    opacity: 1;
+    visibility: visible;
+    transform: translateX(-50%) translateY(-15px); /* Moves up slightly for the slide effect */
 }

@@ -16,9 +16,21 @@
         <label for="target-input">Enter target sum:</label>
         <input type="number" id="target-input" value="9">
     </div>
-    <button onclick="initializeArray()">Initialize Array</button>
-    <button onclick="startVisualization('linear')">Linear Search</button>
-    <button onclick="startVisualization('twoPointers')">Two Pointers</button>
+    <button 
+        onclick="initializeArray()" 
+        data-title="Reads input, converts to a number array, and renders the array elements below.">
+        Initialize Array
+    </button>
+    <button 
+        onclick="startVisualization('linear')"
+        data-title="Starts the O(n^2) Linear Search. Compares every unique pair of numbers in the array.">
+        Linear Search
+    </button>
+    <button 
+        onclick="startVisualization('twoPointers')"
+        data-title="Starts the O(n) Two Pointers method. Requires the array to be sorted for correct results.">
+        Two Pointers
+    </button>
     <div id="array-container"></div>
     <div id="status"></div>
 
@@ -26,8 +38,17 @@
         let array = [];
         let target = 0;
         let intervalId;
+        let twoPointersStep_i = 0;
+        let twoPointersStep_j = 0;
 
         function initializeArray() {
+             // 1. Clear any running timer immediately
+            clearInterval(intervalId); 
+             // 2. Clear previous visual highlights and status messages
+    document.querySelectorAll('.array-element').forEach(el => {
+        el.classList.remove('highlight', 'solution');
+    });
+    document.getElementById('status').textContent = '';
             const arrayInput = document.getElementById('array-input').value;
             array = arrayInput.split(',').map(Number);
             target = parseInt(document.getElementById('target-input').value);
@@ -110,13 +131,15 @@
         function twoPointersStep(i, j) {
             highlightElements(i, j);
             const sum = array[i] + array[j];
+            twoPointersStep_i = i;
+            twoPointersStep_j = j;
             if (sum === target) {
-                solutionFound(i, j);
+                 solutionFound(i, j);
             } else if (sum < target) {
-                i++;
-            } else {
-                j--;
-            }
+             twoPointersStep_i++;
+            } else { // sum > target
+            twoPointersStep_j--;
+    }
         }
 
         function highlightElements(i, j) {
