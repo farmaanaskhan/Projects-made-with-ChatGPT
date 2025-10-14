@@ -1,0 +1,152 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Calendar App</title>
+    <style>
+        body {
+            font-family: Arial, sans-serif;
+            margin: 0;
+            padding: 20px;
+            background-color: #f0f0f0;
+            display: flex;
+            flex-direction: column;
+            height: 100vh;
+            align-items: center;
+        }
+        h1 {
+            text-align: center;
+            color: #333;
+            margin-bottom: 20px;
+        }
+        #app-container {
+            max-width: 800px;
+            width: 100%;
+        }
+        #calendar-container {
+            flex-grow: 1;
+            overflow: auto;
+            margin-top: 20px;
+        }
+        #calendar {
+            display: grid;
+            grid-template-columns: 60px repeat(7, 1fr);
+            gap: 1px;
+            background-color: #ddd;
+            border: 1px solid #ccc;
+        }
+        .cell {
+            background-color: white;
+            padding: 5px;
+            font-size: 12px;
+            min-height: 30px;
+        }
+        .header {
+            font-weight: bold;
+            text-align: center;
+            background-color: #4CAF50;
+            color: white;
+        }
+        .time {
+            grid-column: 1;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            background-color: #f2f2f2;
+        }
+        .event {
+            background-color: #91c5f2;
+            border-radius: 4px;
+            padding: 2px;
+            margin-bottom: 2px;
+            cursor: move;
+            font-size: 10px;
+            white-space: nowrap;
+            overflow: hidden;
+            text-overflow: ellipsis;
+        }
+        #add-event {
+            padding: 10px 0;
+            display: flex;
+            gap: 10px;
+            align-items: center;
+        }
+        #add-event input {
+            flex-grow: 1;
+            padding: 5px;
+        }
+        #add-event button {
+            padding: 5px 10px;
+            background-color: #4CAF50;
+            color: white;
+            border: none;
+            cursor: pointer;
+        }
+    </style>
+</head>
+<body>
+    <div id="app-container">
+        <h1>Calendar App</h1>
+        <div id="add-event">
+            <input type="text" id="event-name" placeholder="Event Name">
+            <input type="text" id="event-type" placeholder="Event Type">
+            <button onclick="addEvent()">Add Event</button>
+        </div>
+        <div id="calendar-container">
+            <div id="calendar"></div>
+        </div>
+    </div>
+
+    <script>
+        const calendar = document.getElementById('calendar');
+        const days = ['Sun', 'Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat'];
+        const times = ['9:00', '10:00', '11:00', '12:00', '13:00', '14:00', '15:00', '16:00', '17:00'];
+
+        function createCalendar() {
+            calendar.innerHTML = '<div class="cell header">Time</div>';
+            days.forEach(day => {
+                calendar.innerHTML += `<div class="cell header">${day}</div>`;
+            });
+
+            times.forEach(time => {
+                calendar.innerHTML += `<div class="cell time">${time}</div>`;
+                for (let i = 0; i < 7; i++) {
+                    calendar.innerHTML += `<div class="cell" ondrop="drop(event)" ondragover="allowDrop(event)"></div>`;
+                }
+            });
+        }
+
+        function addEvent() {
+            const name = document.getElementById('event-name').value;
+            const type = document.getElementById('event-type').value;
+            if (name && type) {
+                const event = document.createElement('div');
+                event.className = 'event';
+                event.draggable = true;
+                event.ondragstart = drag;
+                event.innerHTML = `${name} (${type})`;
+                document.querySelector('.cell:not(.header):not(.time)').appendChild(event);
+                document.getElementById('event-name').value = '';
+                document.getElementById('event-type').value = '';
+            }
+        }
+
+        function allowDrop(ev) {
+            ev.preventDefault();
+        }
+
+        function drag(ev) {
+            ev.dataTransfer.setData("text", ev.target.outerHTML);
+        }
+
+        function drop(ev) {
+            ev.preventDefault();
+            const data = ev.dataTransfer.getData("text");
+            ev.target.innerHTML += data;
+        }
+
+        createCalendar();
+    </script>
+</body>
+</html>
