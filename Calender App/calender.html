@@ -3,7 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Responsive Drag-and-Drop Calendar</title>
+    <title>Calendar App</title>
     <!-- Load Tailwind CSS -->
     <script src="https://cdn.tailwindcss.com"></script>
     <style>
@@ -38,7 +38,7 @@
         <div id="add-event" class="p-6 bg-gray-50 flex flex-col sm:flex-row gap-4">
             <input type="text" id="event-name" placeholder="Task Name (e.g., Design Review)" class="p-3 border border-gray-300 rounded-lg focus:ring-green-500 focus:border-green-500 flex-grow text-sm">
             <input type="text" id="event-type" placeholder="Type (e.g., Work, Personal, Meeting)" class="p-3 border border-gray-300 rounded-lg focus:ring-green-500 focus:border-green-500 flex-grow text-sm">
-            <button onclick="addEvent()" class="p-3 bg-green-600 hover:bg-green-700 text-white font-semibold rounded-lg shadow-md transition duration-200">
+            <button onclick="window.addEvent()" class="p-3 bg-green-600 hover:bg-green-700 text-white font-semibold rounded-lg shadow-md transition duration-200">
                 Create Task
             </button>
         </div>
@@ -46,7 +46,7 @@
         <!-- User Info & Status -->
         <div class="p-4 bg-yellow-100 text-yellow-800 text-sm font-medium border-t border-b border-yellow-200">
             User ID: <span id="user-id-display" class="font-mono">Loading...</span> 
-            (Drag tasks to schedule them.)
+            (Drag tasks to schedule them. Persistence requires valid Firebase Config.)
         </div>
 
         <!-- Calendar Display -->
@@ -70,249 +70,363 @@
     </div>
 
     <!-- Firebase Imports and Setup -->
-   <script type="module">
-    import { initializeApp } from "https://www.gstatic.com/firebasejs/11.6.1/firebase-app.js";
-    import { getAuth, signInAnonymously, signInWithCustomToken, onAuthStateChanged } from "https://www.gstatic.com/firebasejs/11.6.1/firebase-auth.js";
-    import { getFirestore, doc, setDoc, onSnapshot, collection, query, addDoc, updateDoc, deleteDoc } from "https://www.gstatic.com/firebasejs/11.6.1/firebase-firestore.js";
-    
-    // --- GLOBAL CONFIGURATION (MANDATORY CANVAS VARIABLES) ---
-    const appId = typeof __app_id !== 'undefined' ? __app_id : 'default-calendar-app';
-    const firebaseConfig = typeof __firebase_config !== 'undefined' ? JSON.parse(__firebase_config) : null;
-    const initialAuthToken = typeof __initial_auth_token !== 'undefined' ? __initial_auth_token : null;
-
-    let app, db, auth;
-    let userId = null;
-    let isAuthReady = false;
-    
-    // --- CALENDAR DATA STRUCTURES ---
-    const days = ['Sun', 'Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat'];
-    const times = ['9:00', '10:00', '11:00', '12:00', '13:00', '14:00', '15:00', '16:00', '17:00'];
-    const calendar = document.getElementById('calendar');
-    let unassignedTasks = []; 
-
-    // --- UTILITY: MODAL FUNCTIONS (ALREADY WINDOW EXPOSED) ---
-    // window.showAlert is already defined
-
-    // --- FIREBASE INITIALIZATION & AUTH ---
-    if (firebaseConfig) {
-        app = initializeApp(firebaseConfig);
-        db = getFirestore(app);
-        auth = getAuth(app);
+    <script type="module">
+        import { initializeApp } from "https://www.gstatic.com/firebasejs/11.6.1/firebase-app.js";
+        import { getAuth, signInAnonymously, signInWithCustomToken, onAuthStateChanged } from "https://www.gstatic.com/firebasejs/11.6.1/firebase-auth.js";
+        import { getFirestore, doc, setDoc, onSnapshot, collection, query, addDoc, updateDoc, deleteDoc } from "https://www.gstatic.com/firebasejs/11.6.1/firebase-firestore.js";
         
-        onAuthStateChanged(auth, async (user) => {
-            if (user) {
-                userId = user.uid;
-            } else if (initialAuthToken) {
-                try {
-                    await signInWithCustomToken(auth, initialAuthToken);
-                    userId = auth.currentUser.uid;
-                } catch (error) {
-                    console.error("Firebase Auth Error with custom token:", error);
-                    await signInAnonymously(auth);
-                    userId = auth.currentUser.uid;
+        // --- GLOBAL CONFIGURATION (MANDATORY CANVAS VARIABLES) ---
+        const appId = typeof __app_id !== 'undefined' ? __app_id : 'default-calendar-app';
+        // Safety check before JSON parsing
+        const firebaseConfig = typeof __firebase_config === 'string' && __firebase_config.length > 2 ? JSON.parse(__firebase_config) : null;
+        const initialAuthToken = typeof __initial_auth_token !== 'undefined' ? __initial_auth_token : null;
+
+        let app, db, auth;
+        let userId = null;
+        let isAuthReady = false;
+        let isFirebaseActive = false; // New flag to track persistence capability
+        
+        // --- CALENDAR DATA STRUCTURES ---
+        const days = ['Sun', 'Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat'];
+        const times = ['9:00', '10:00', '11:00', '12:00', '13:00', '14:00', '15:00', '16:00', '17:00'];
+        const calendar = document.getElementById('calendar');
+        let unassignedTasks = []; // Holds tasks not yet placed on the grid
+
+        // --- UTILITY: MODAL FUNCTIONS ---
+        window.showAlert = function(title, message, isConfirm = false) {
+            return new Promise(resolve => {
+                const modal = document.getElementById('alert-modal');
+                document.getElementById('modal-title').textContent = title;
+                document.getElementById('modal-message').textContent = message;
+                const confirmButton = document.getElementById('modal-confirm');
+                const cancelButton = document.getElementById('modal-cancel');
+
+                modal.classList.remove('hidden');
+                modal.classList.add('flex');
+
+                cancelButton.classList.toggle('hidden', !isConfirm);
+
+                confirmButton.onclick = () => {
+                    modal.classList.add('hidden');
+                    modal.classList.remove('flex');
+                    resolve(true);
+                };
+
+                if (isConfirm) {
+                    cancelButton.onclick = () => {
+                        modal.classList.add('hidden');
+                        modal.classList.remove('flex');
+                        resolve(false);
+                    };
+                } else {
+                    cancelButton.onclick = null;
                 }
-            } else {
-                await signInAnonymously(auth);
-                userId = auth.currentUser.uid;
-            }
-            
-            document.getElementById('user-id-display').textContent = userId;
-            isAuthReady = true;
-            initApp(); // Start listeners and draw calendar after auth is ready
-        });
-    } else {
-        // Log "Firebase config is missing."
-        console.error("Firebase config is missing."); 
-        document.getElementById('user-id-display').textContent = "ERROR: Config missing";
-        isAuthReady = true;
-        initApp(); 
-    }
-
-    // --- FIRESTORE OPERATIONS (No change needed here) ---
-    const getUnassignedCollectionRef = () => {
-        if (!userId) throw new Error("User not authenticated.");
-        return collection(db, `artifacts/${appId}/users/${userId}/unassigned_tasks`);
-    };
-
-    const getAssignedCollectionRef = () => {
-        if (!userId) throw new Error("User not authenticated.");
-        return collection(db, `artifacts/${appId}/users/${userId}/schedule_slots`);
-    };
-    
-    // --- CALENDAR RENDERING ---
-
-    // EXPOSE TO GLOBAL SCOPE
-    window.createCalendar = function() {
-        calendar.innerHTML = '';
-        
-        // 1. Day Headers
-        calendar.innerHTML += `<div class="cell header bg-gray-200 text-gray-700 text-sm font-normal border-r border-gray-300">Unassigned Tasks</div>`;
-        days.forEach(day => {
-            calendar.innerHTML += `<div class="cell header bg-green-600 text-white font-bold">${day}</div>`;
-        });
-        
-        // 2. Unassigned Tasks Row (Above the main grid)
-        const unassignedRow = document.createElement('div');
-        unassignedRow.className = 'col-span-8 p-2 bg-yellow-50 flex flex-wrap gap-2 border-b border-gray-300';
-        unassignedRow.id = 'unassigned-tasks-row';
-        calendar.appendChild(unassignedRow);
-
-        // 3. Time Slots and Schedule Grid
-        times.forEach((time, timeIndex) => {
-            // Time Column
-            calendar.innerHTML += `<div class="cell time time-slot bg-gray-200 text-gray-700 border-r border-gray-300">${time}</div>`;
-            
-            // Day/Time Cells
-            for (let dayIndex = 0; dayIndex < 7; dayIndex++) {
-                const slot = document.createElement('div');
-                slot.className = 'cell event-slot time-slot border border-gray-200 hover:bg-green-50 transition duration-100';
-                slot.id = `slot-${dayIndex}-${timeIndex}`; 
-                
-                // Event handlers are set below or use window scope when created
-                slot.ondrop = window.drop; 
-                slot.ondragover = window.allowDrop;
-                
-                calendar.appendChild(slot);
-            }
-        });
-
-        window.renderUnassignedTasks();
-    };
-
-    // This function must also be exposed if used in initApp()
-    window.renderUnassignedTasks = function() {
-        // ... (function body remains the same)
-        const unassignedRow = document.getElementById('unassigned-tasks-row');
-        if (!unassignedRow) return;
-
-        unassignedRow.innerHTML = '';
-        
-        unassignedTasks.forEach(task => {
-            const event = window.createEventElement(task);
-            unassignedRow.appendChild(event);
-        });
-    };
-
-    // This function must also be exposed
-    window.createEventElement = function(task) {
-        // ... (function body remains the same)
-        const event = document.createElement('div');
-        event.className = `event p-1 text-xs font-medium text-white shadow-md transition duration-150 transform hover:scale-[1.02] ${task.type === 'Work' ? 'bg-blue-500' : task.type === 'Personal' ? 'bg-pink-500' : 'bg-gray-500'}`;
-        event.draggable = true;
-        event.ondragstart = window.drag;
-        event.id = task.id; // Firestore Document ID
-        event.setAttribute('data-name', task.name);
-        event.setAttribute('data-type', task.type);
-        event.setAttribute('data-timeIndex', task.timeIndex); // Used for location lookup
-        event.setAttribute('data-dayIndex', task.dayIndex); // Used for location lookup
-        
-        event.textContent = `${task.name} (${task.type})`;
-
-        const deleteBtn = document.createElement('button');
-        deleteBtn.innerHTML = '&times;';
-        deleteBtn.className = 'ml-1 text-white opacity-70 hover:opacity-100 float-right';
-        deleteBtn.onclick = (e) => {
-            e.stopPropagation(); 
-            window.deleteEvent(task.id, task.dayIndex, task.timeIndex);
+            });
         };
-        event.appendChild(deleteBtn);
 
-        return event;
-    };
-    
-    // --- DRAG AND DROP HANDLERS (Already exposed via window.) ---
-    // window.allowDrop, window.drag, window.drop are already defined and correct.
-
-    // --- TASK MANAGEMENT (CRUD) ---
-    
-    // EXPOSE TO GLOBAL SCOPE
-    window.addEvent = async function() {
-        if (!isAuthReady) return window.showAlert("Wait", "Authentication still loading.");
-        
-        const name = document.getElementById('event-name').value.trim();
-        const type = document.getElementById('event-type').value.trim();
-        
-        if (!name) return window.showAlert("Missing Info", "Please enter a Task Name.");
-        if (!type) return window.showAlert("Missing Info", "Please enter a Task Type.");
-        
-        try {
-            await addDoc(getUnassignedCollectionRef(), {
-                name: name,
-                type: type
-            });
-
-            document.getElementById('event-name').value = '';
-            document.getElementById('event-type').value = '';
-        } catch (e) {
-            console.error("Error adding document: ", e);
-            window.showAlert("Error", "Could not save task to database.");
-        }
-    };
-
-    // EXPOSE TO GLOBAL SCOPE
-    window.deleteEvent = async function(id, dayIndex, timeIndex) {
-        const confirmed = await window.showAlert(
-            "Confirm Delete", 
-            "Are you sure you want to delete this task permanently?", 
-            true
-        );
-        if (!confirmed) return;
-
-        try {
-            if (dayIndex === -1 && timeIndex === -1) {
-                await deleteDoc(doc(db, `artifacts/${appId}/users/${userId}/unassigned_tasks`, id));
-            } else {
-                await deleteDoc(doc(db, `artifacts/${appId}/users/${userId}/schedule_slots`, id));
-            }
-        } catch (e) {
-            console.error("Error deleting document: ", e);
-            window.showAlert("Error", "Could not delete task from database.");
-        }
-    };
-
-    // --- MAIN APPLICATION STARTUP ---
-
-    // This helper function does NOT need to be exposed globally
-    function initApp() {
-        window.createCalendar(); 
-        setupFirestoreListeners();
-    }
-
-    // This helper function does NOT need to be exposed globally
-    function setupFirestoreListeners() {
-        if (!db || !userId) return;
-
-        // ... (Firestore listeners remain the same) ...
-        onSnapshot(getAssignedCollectionRef(), (snapshot) => {
-            document.querySelectorAll('.event-slot').forEach(slot => slot.innerHTML = '');
-
-            snapshot.docChanges().forEach(change => {
-                const task = { id: change.doc.id, ...change.doc.data() };
+        // --- FIREBASE INITIALIZATION & AUTH ---
+        if (firebaseConfig) {
+            try {
+                app = initializeApp(firebaseConfig);
+                db = getFirestore(app);
+                auth = getAuth(app);
+                isFirebaseActive = true;
                 
-                if (change.type === 'added' || change.type === 'modified') {
-                    const slotId = `slot-${task.dayIndex}-${task.timeIndex}`;
-                    const targetSlot = document.getElementById(slotId);
-                    if (targetSlot) {
-                        const eventElement = window.createEventElement(task);
-                        targetSlot.appendChild(eventElement);
+                onAuthStateChanged(auth, async (user) => {
+                    if (user) {
+                        userId = user.uid;
+                    } else if (initialAuthToken) {
+                        await signInWithCustomToken(auth, initialAuthToken).catch(async (error) => {
+                            console.error("Auth Error with custom token, falling back to anonymous:", error);
+                            await signInAnonymously(auth);
+                        });
+                        userId = auth.currentUser?.uid;
                     } else {
-                         console.warn(`Target slot ${slotId} not found.`);
+                        await signInAnonymously(auth);
+                        userId = auth.currentUser.uid;
                     }
-                } 
-            });
-        });
+                    
+                    document.getElementById('user-id-display').textContent = userId;
+                    isAuthReady = true;
+                    initApp(); 
+                });
+            } catch (e) {
+                document.getElementById('user-id-display').textContent = "Error: Config invalid";
+                isAuthReady = true;
+                initApp(); // Run non-Firebase setup
+            }
+        } else {
+            // Non-Firebase path: Initialization fails silently but app runs locally
+            document.getElementById('user-id-display').textContent = "WARNING: No Persistence";
+            isAuthReady = true;
+            initApp(); 
+        }
 
-        onSnapshot(getUnassignedCollectionRef(), (snapshot) => {
-            unassignedTasks = snapshot.docs.map(doc => ({ 
-                id: doc.id, 
-                name: doc.data().name, 
-                type: doc.data().type,
-                dayIndex: -1, 
-                timeIndex: -1
-            }));
+        // --- FIRESTORE OPERATIONS ---
+        const getUnassignedCollectionRef = () => {
+            if (!isFirebaseActive) throw new Error("Firebase not active.");
+            return collection(db, `artifacts/${appId}/users/${userId}/unassigned_tasks`);
+        };
+
+        const getAssignedCollectionRef = () => {
+            if (!isFirebaseActive) throw new Error("Firebase not active.");
+            return collection(db, `artifacts/${appId}/users/${userId}/schedule_slots`);
+        };
+        
+        // --- CALENDAR RENDERING ---
+
+        window.createCalendar = function() {
+            calendar.innerHTML = '';
+            
+            // 1. Day Headers
+            calendar.innerHTML += `<div class="cell header bg-gray-200 text-gray-700 text-sm font-normal border-r border-gray-300">Unassigned Tasks</div>`;
+            days.forEach(day => {
+                calendar.innerHTML += `<div class="cell header bg-green-600 text-white font-bold">${day}</div>`;
+            });
+            
+            // 2. Unassigned Tasks Row (Above the main grid)
+            const unassignedRow = document.createElement('div');
+            unassignedRow.className = 'col-span-8 p-2 bg-yellow-50 flex flex-wrap gap-2 border-b border-gray-300';
+            unassignedRow.id = 'unassigned-tasks-row';
+            calendar.appendChild(unassignedRow);
+
+            // 3. Time Slots and Schedule Grid
+            times.forEach((time, timeIndex) => {
+                // Time Column
+                calendar.innerHTML += `<div class="cell time time-slot bg-gray-200 text-gray-700 border-r border-gray-300">${time}</div>`;
+                
+                // Day/Time Cells
+                for (let dayIndex = 0; dayIndex < 7; dayIndex++) {
+                    const slot = document.createElement('div');
+                    slot.className = 'cell event-slot time-slot border border-gray-200 hover:bg-green-50 transition duration-100';
+                    slot.id = `slot-${dayIndex}-${timeIndex}`; 
+                    
+                    slot.ondrop = window.drop; 
+                    slot.ondragover = window.allowDrop;
+                    
+                    calendar.appendChild(slot);
+                }
+            });
+
             window.renderUnassignedTasks();
-        });
-    }
-</script>
+        };
+
+        window.renderUnassignedTasks = function() {
+            const unassignedRow = document.getElementById('unassigned-tasks-row');
+            if (!unassignedRow) return;
+
+            unassignedRow.innerHTML = '';
+            
+            unassignedTasks.forEach(task => {
+                const event = window.createEventElement(task);
+                unassignedRow.appendChild(event);
+            });
+        };
+
+        window.createEventElement = function(task) {
+            const event = document.createElement('div');
+            event.className = `event p-1 text-xs font-medium text-white shadow-md transition duration-150 transform hover:scale-[1.02] ${task.type === 'Work' ? 'bg-blue-500' : task.type === 'Personal' ? 'bg-pink-500' : 'bg-gray-500'}`;
+            event.draggable = true;
+            event.ondragstart = window.drag;
+            event.id = task.id; 
+            event.setAttribute('data-name', task.name);
+            event.setAttribute('data-type', task.type);
+            event.setAttribute('data-timeIndex', task.timeIndex); 
+            event.setAttribute('data-dayIndex', task.dayIndex); 
+            
+            event.textContent = `${task.name} (${task.type})`;
+
+            const deleteBtn = document.createElement('button');
+            deleteBtn.innerHTML = '&times;';
+            deleteBtn.className = 'ml-1 text-white opacity-70 hover:opacity-100 float-right';
+            deleteBtn.onclick = (e) => {
+                e.stopPropagation(); 
+                window.deleteEvent(task.id, task.dayIndex, task.timeIndex);
+            };
+            event.appendChild(deleteBtn);
+
+            return event;
+        };
+        
+        // --- DRAG AND DROP HANDLERS ---
+        
+        let draggedElementId = null;
+
+        window.allowDrop = function(ev) {
+            ev.preventDefault();
+            ev.target.classList.add('bg-green-100'); 
+        };
+        
+        window.drag = function(ev) {
+            draggedElementId = ev.target.id;
+            ev.dataTransfer.setData("text/plain", draggedElementId); 
+            
+            ev.target.ondragend = (e) => e.target.classList.remove('bg-green-100');
+        };
+
+        window.drop = async function(ev) {
+            ev.preventDefault();
+            ev.target.classList.remove('bg-green-100');
+
+            if (!isFirebaseActive) return window.showAlert("Persistence Error", "Cannot save. Firebase configuration is missing.");
+
+            const taskId = ev.dataTransfer.getData("text/plain");
+            if (!taskId || !isAuthReady) return;
+
+            const targetSlot = ev.target.closest('.event-slot, #unassigned-tasks-row');
+
+            if (!targetSlot) return; 
+
+            // 1. Determine New Location
+            let newDayIndex = -1;
+            let newTimeIndex = -1;
+
+            if (targetSlot.id === 'unassigned-tasks-row') {
+                newDayIndex = -1; 
+                newTimeIndex = -1;
+            } else if (targetSlot.id.startsWith('slot-')) {
+                const parts = targetSlot.id.split('-');
+                newDayIndex = parseInt(parts[1]);
+                newTimeIndex = parseInt(parts[2]);
+            }
+
+            // 2. Find the task (simplified lookup)
+            const currentEl = document.getElementById(taskId);
+            if (!currentEl) return;
+            
+            const taskData = {
+                id: taskId,
+                name: currentEl.getAttribute('data-name'),
+                type: currentEl.getAttribute('data-type'),
+            };
+
+            // 3. Update Firestore based on the drop location
+            try {
+                if (newDayIndex === -1) {
+                    // Moving to UNASSIGNED: delete from assigned and add to unassigned
+                    const assignedRef = doc(db, `artifacts/${appId}/users/${userId}/schedule_slots`, taskId);
+                    const unassignedRef = doc(db, `artifacts/${appId}/users/${userId}/unassigned_tasks`, taskId);
+                    
+                    await setDoc(unassignedRef, { name: taskData.name, type: taskData.type });
+                    await deleteDoc(assignedRef).catch(() => {});
+                    
+                } else {
+                    // Moving to ASSIGNED SLOT: update assigned and delete from unassigned
+                    const assignedRef = doc(db, `artifacts/${appId}/users/${userId}/schedule_slots`, taskId);
+                    
+                    await setDoc(assignedRef, { 
+                        name: taskData.name, 
+                        type: taskData.type,
+                        dayIndex: newDayIndex, 
+                        timeIndex: newTimeIndex 
+                    });
+
+                    const unassignedRef = doc(db, `artifacts/${appId}/users/${userId}/unassigned_tasks`, taskId);
+                    await deleteDoc(unassignedRef).catch(() => {}); 
+                }
+            } catch (e) {
+                console.error("Error updating schedule: ", e);
+                window.showAlert("Database Error", "Failed to move task. Check console for details.");
+            }
+        };
+
+        // --- TASK MANAGEMENT (CRUD) ---
+        
+        window.addEvent = async function() {
+            if (!isAuthReady) return window.showAlert("Wait", "Authentication still loading.");
+            
+            const name = document.getElementById('event-name').value.trim();
+            const type = document.getElementById('event-type').value.trim();
+            
+            if (!name) return window.showAlert("Missing Info", "Please enter a Task Name.");
+            if (!type) return window.showAlert("Missing Info", "Please enter a Task Type.");
+            
+            if (!isFirebaseActive) return window.showAlert("Persistence Error", "Cannot save task. Firebase configuration is missing.");
+
+            try {
+                await addDoc(getUnassignedCollectionRef(), {
+                    name: name,
+                    type: type
+                });
+
+                document.getElementById('event-name').value = '';
+                document.getElementById('event-type').value = '';
+            } catch (e) {
+                console.error("Error adding document: ", e);
+                window.showAlert("Error", "Could not save task to database.");
+            }
+        };
+
+        window.deleteEvent = async function(id, dayIndex, timeIndex) {
+            if (!isFirebaseActive) return window.showAlert("Persistence Error", "Cannot delete. Firebase configuration is missing.");
+
+            const confirmed = await window.showAlert(
+                "Confirm Delete", 
+                "Are you sure you want to delete this task permanently?", 
+                true
+            );
+            if (!confirmed) return;
+
+            try {
+                if (dayIndex === -1 && timeIndex === -1) {
+                    await deleteDoc(doc(db, `artifacts/${appId}/users/${userId}/unassigned_tasks`, id));
+                } else {
+                    await deleteDoc(doc(db, `artifacts/${appId}/users/${userId}/schedule_slots`, id));
+                }
+            } catch (e) {
+                console.error("Error deleting document: ", e);
+                window.showAlert("Error", "Could not delete task from database.");
+            }
+        };
+
+        // --- MAIN APPLICATION STARTUP ---
+
+        function initApp() {
+            window.createCalendar(); 
+            setupFirestoreListeners();
+        }
+
+        function setupFirestoreListeners() {
+            // Only set up listeners if Firebase is active
+            if (!isFirebaseActive) {
+                // Manually populate unassigned tasks if persistence is disabled (for demonstration)
+                unassignedTasks = [{ id: 'local-1', name: 'Start Here', type: 'Local' }];
+                window.renderUnassignedTasks();
+                return; 
+            }
+
+            // Listener for Assigned Schedule Slots
+            onSnapshot(getAssignedCollectionRef(), (snapshot) => {
+                document.querySelectorAll('.event-slot').forEach(slot => slot.innerHTML = '');
+
+                snapshot.docChanges().forEach(change => {
+                    const task = { id: change.doc.id, ...change.doc.data() };
+                    
+                    if (change.type === 'added' || change.type === 'modified') {
+                        const slotId = `slot-${task.dayIndex}-${task.timeIndex}`;
+                        const targetSlot = document.getElementById(slotId);
+                        if (targetSlot) {
+                            const eventElement = window.createEventElement(task);
+                            targetSlot.appendChild(eventElement);
+                        } else {
+                             console.warn(`Target slot ${slotId} not found.`);
+                        }
+                    } 
+                });
+            });
+
+            // Listener for Unassigned Tasks
+            onSnapshot(getUnassignedCollectionRef(), (snapshot) => {
+                unassignedTasks = snapshot.docs.map(doc => ({ 
+                    id: doc.id, 
+                    name: doc.data().name, 
+                    type: doc.data().type,
+                    dayIndex: -1, 
+                    timeIndex: -1
+                }));
+                window.renderUnassignedTasks();
+            });
+        }
+    </script>
 </body>
 </html>
