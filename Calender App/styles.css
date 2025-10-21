@@ -1,0 +1,44 @@
+/* Custom styles for grid and scrolling */
+#calendar {
+    /* 80px for Time column + 7 equal fractions for days */
+    grid-template-columns: 80px repeat(7, 1fr); 
+    min-height: 800px;
+    overflow-x: auto;
+}
+.time-slot {
+    height: 50px; /* Uniform height for time slots */
+}
+.event-slot {
+    min-height: 50px;
+    display: flex;
+    flex-direction: column; 
+    padding: 2px;
+    position: relative;
+}
+/* Style for the task card itself */
+.event {
+     /* Ensures cards are visible against light backgrounds */
+     color: white !important; 
+     background-color: #3b82f6; /* Default visible blue */
+     border: 1px solid rgba(255, 255, 255, 0.5);
+     border-radius: 4px;
+     padding: 2px;
+     margin-bottom: 2px;
+     cursor: move;
+     font-size: 10px;
+     white-space: nowrap;
+     overflow: hidden;
+     text-overflow: ellipsis;
+}
+/* Style to ensure the Unassigned Row is a proper drop target */
+#unassigned-tasks-row {
+    min-height: 40px; 
+    align-items: center;
+    /* Added padding/border to ensure visibility */
+    padding: 8px;
+    border-radius: 4px;
+}
+.unassigned-header-container {
+    /* Ensure the drop target is visible when empty */
+    min-height: 80px; 
+}
