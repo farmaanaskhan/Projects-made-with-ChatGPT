@@ -307,23 +307,34 @@ async function addEvent() {
     if (!type) return showAlert("Missing Info", "Please enter a Task Type.");
     
     if (!isFirebaseActive) {
-        // LOCAL STORAGE FALLBACK
+        // --- LOCAL STORAGE FALLBACK (FIXED) ---
+        
+        // 1. Create unique ID and new task object
         const newTaskId = 'local-' + Date.now();
-        unassignedTasks.push({
+        const newTask = {
             id: newTaskId,
             name: name,
             type: type,
             dateId: null,
             timeIndex: -1
-        });
+        };
+
+        // 2. Add new task to the global list
+        unassignedTasks.push(newTask);
+        
+        // 3. Save the updated list to localStorage
         saveLocalTasks(); 
+        
+        // 4. Rerender the task list to make the new task visible
         renderUnassignedTasks(); 
+        
+        // 5. Clear inputs
         document.getElementById('event-name').value = '';
         document.getElementById('event-type').value = '';
         return; 
     }
     
-    // FIREBASE LOGIC
+    // FIREBASE LOGIC (unchanged)
     try {
         await addDoc(getUnassignedCollectionRef(), {
             name: name,
